@@ -1,0 +1,3 @@
+build/*
+dist/*
+makala.egg-info/*

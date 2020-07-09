@@ -1,0 +1,172 @@
+# --- DO NOT EDIT...this is a rendered file
+# --- {{ timestamp }}
+
+LAMBDA_NAME = {{ name }}
+
+RUNTIME = {{ runtime }}
+
+LAMBDA_ROLE = {{ role }}
+
+REGION = {{ region }}
+
+LOG_RETENTION = {{ logs.retention }}
+
+LAMBDA_SERVICE = {{ service }}
+
+MODULES = {{ modules }}
+
+HANDLER_NAME = {{ handler }}
+
+# ------------------------------------------------
+
+LAMBDA_FILE = $(LAMBDA_NAME)
+
+LAMBDA_CONFIG = $(LAMBDA_NAME).yaml
+
+ZIPFILE = \
+    $(LAMBDA_NAME).zip
+
+CACHE_DIR = {{ cache_dir }}
+
+ROLE_ARN = \
+    $(CACHE_DIR)/$(LAMBDA_ROLE).arn
+
+ROLE = {{ role }} 
+
+LAMBDA = \
+    $(LAMBDA_NAME).py
+
+LAMBDA_ARN = \
+    $(CACHE_DIR)/$(LAMBDA_NAME).arn
+
+LAMBDA_HANDLER = $(LAMBDA_NAME)
+
+LAMBDA_LOG_GROUP_NAME = /aws/lambda/$(LAMBDA_NAME)
+
+LAMBDA_LOG_GROUP = \
+    $(CACHE_DIR)/$(LAMBDA_NAME)-log-group.json
+
+LAMBDA_ENV = \
+    $(CACHE_DIR)/$(LAMBDA_NAME)-env.json
+
+VPC_CONFIG = \
+    $(CACHE_DIR)/vpc-config.json
+
+LAMBDA_CONFIGURATION = \
+    $(CACHE_DIR)/$(LAMBDA_NAME)-config.json
+
+all: $(ZIPFILE) $(LAMBDA_ARN) $(LAMBDA_CONFIGURATION) Makefile
+
+$(ROLE_ARN):
+	python makala.py -o $(LAMBDA_NAME)
+
+# initial creation of the Lambda
+$(LAMBDA_ARN): $(LAMBDA_LOG_GROUP)
+	if ! test -d cache; then \
+	  mkdir $(CACHE_DIR); \
+	fi
+
+	if test -e $(LAMBDA_ENV); then \
+	  ENVIRONMENT='--environment file://./'$(LAMBDA_ENV); \
+	fi; \
+	if ! test -e "$@"; then \
+	  aws lambda create-function \
+            {{ vpc_config_option }} \
+	    --role $$(cat $(ROLE_ARN)) \
+	    --runtime $(RUNTIME) \
+	    --function-name $(LAMBDA_HANDLER) \
+	    --handler $(LAMBDA_HANDLER).$(HANDLER_NAME) \
+	    --description '{{ description }}' \
+	    $$ENVIRONMENT \
+	    --timeout {{ timeout }} \
+	    --memory-size {{ memory }} \
+	    --zip-file fileb://$(ZIPFILE) > $(LAMBDA_CONFIGURATION); \
+	  if test -s $(LAMBDA_CONFIGURATION); then \
+	    cat $(LAMBDA_CONFIGURATION) | jq -r .FunctionArn > $@; \
+	  else \
+	    rm -f $(LAMBDA_CONFIGURATION); \
+	    false; \
+	  fi; \
+	fi
+
+$(ZIPFILE): $(LAMBDA) $(MODULES)
+	python -m py_compile $<
+
+	# zip/update dependencies
+	currdir=$$(pwd); \
+	for a in lib lib64; do \
+	  if test -d $$a; then \
+	    cd $$currdir; \
+	    cd $$a/$(RUNTIME)/site-packages; \
+	    zip -r9 -u $$currdir/$@ * || true; \
+	  fi; \
+	done
+
+	# zip/update up local modules
+	if test -n "$(MODULES)"; then \
+	  for f in $(MODULES); do \
+	    zip -r9 -u $@ $$f || true; \
+	  done; \
+	fi
+
+	# zip/update lambda
+	zip -u -g $@ $< || true
+
+Makefile: $(LAMBDA_CONFIG)
+	python makala.py -o $(LAMBDA_NAME)
+	$(MAKE) $(MFLAGS)
+
+# update configuration if {{ name }}.yaml changes
+$(LAMBDA_CONFIGURATION):: $(LAMBDA_CONFIG) $(ROLE_ARN)
+	if test -e $(LAMBDA_ARN); then \
+	  if test -e $(LAMBDA_ENV); then \
+	    ENVIRONMENT='--environment file://./'$(LAMBDA_ENV); \
+	  fi; \
+	  aws lambda update-function-configuration \
+	    --function-name $(LAMBDA_HANDLER) \
+	    --description '{{ description }}' \
+	    {{ vpc_config_option }} \
+	    --role $$(cat $(ROLE_ARN)) \
+	    --runtime $(RUNTIME) \
+	    --function-name $(LAMBDA_HANDLER) \
+	    --handler $(LAMBDA_HANDLER).$(HANDLER_NAME) \
+	    --timeout {{ timeout }} \
+	    --memory-size {{ memory }} \
+	    $$ENVIRONMENT > $@; \
+	fi
+
+$(LAMBDA_CONFIGURATION):: $(ZIPFILE)
+	# if Lambda or any module is updated
+	if test -e "$(LAMBDA_ARN)"; then \
+	  aws lambda update-function-code \
+	    --zip-file fileb://$(ZIPFILE) --function $(LAMBDA_HANDLER) > $@; \
+	fi
+
+$(LAMBDA_LOG_GROUP):
+	aws logs create-log-group --log-group-name $(LAMBDA_LOG_GROUP_NAME) >$@
+
+	aws logs put-retention-policy --log-group-name $(LAMBDA_LOG_GROUP_NAME) \
+	  --retention-in-days $(LOG_RETENTION)
+
+CLEANFILES = \
+    $(ZIPFILE) \
+    $(LAMBDA_LOG_GROUP) \
+    $(LAMBDA_ARN) \
+    $(LAMBDA_CONFIGURATION) \
+    $(LAMBDA_ENV) \
+    $(LAMBDA_ARN) \
+    $(ROLE_ARN) \
+    $(VPC_CONFIG)
+
+real-clean: clean
+	if $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) >/dev/null 2>&1); then \
+	  for a in $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) | jq -r '.AttachedPolicies|.[]|[.PolicyArn]|.[]'); do \
+	    aws iam detach-role-policy --role-name $(ROLE) --policy-arn $$a; \
+	  done; \
+	fi
+	aws iam delete-role --role-name $(ROLE) 2>/dev/null || true
+
+clean:
+	aws lambda delete-function --function $(LAMBDA_HANDLER) 2>/dev/null || true
+	aws logs delete-log-group --log-group-name $(LAMBDA_LOG_GROUP_NAME) 2>/dev/null || true
+	rm -f $(CLEANFILES)
