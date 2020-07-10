@@ -11,7 +11,14 @@ Sometimes a `Makefile` is a good thing and I'm smitten with Makefiles.
 
 # Requirements
 
-...TBD
+* AWS CLI
+* AWS permissions to:
+  * create IAM roles
+  * create IAM policies
+  * create/update/invoke Lambdas
+* boto3
+* python >= 3.6
+* GNU make
 
 # Quick start
 
