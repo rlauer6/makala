@@ -116,7 +116,6 @@ makala_config = MakalaConfig(name=config_name)
 def main():
     """makala - a Makefile based serverless framework for AWS Lambdas
     """
-    # get makala defaults
 
     parser = argparse.ArgumentParser(description='A Makefile based serverless framework',
                                      allow_abbrev=True)
@@ -231,7 +230,7 @@ def validate_vpc_config(config):
 
     if "vpc" in config:
         vpc_config = config["vpc"]
-        if "id" in vpc_config:
+        if isinstance(vpc_config, dict) and "id" in vpc_config:
             vpc_id = vpc_config["id"]
             if vpc_id == "default":
                 vpc_config = create_default_vpc_config()
@@ -259,11 +258,15 @@ def validate_vpc_config(config):
                 else:
                     vpc_config["subnet_ids"] = aws.get_subnet_ids(vpc_id)
 
+        else:
+            config["vpc"] = { "id" : "default"}
+            validate_vpc_config(config)
+
     return vpc_config_valid
 
 
 def create_default_vpc_config():
-    """returns the a default VPC configuration
+    """Returns the a default VPC configuration
     """
     vpc_config = {}
 
@@ -303,20 +306,23 @@ def write_env_vars(config):
 
 
 def write_role_arn(role_name, role_arn):
-    """write the role arn
+    """Write the role arn to a file.
     """
     with open("{}/{}.arn".format(makala_config.cache_dir, role_name), "w") as f: # pylint: disable=C0103
         f.write(role_arn)
 
 def write_lambda_config(config, lambda_name):
-    """write the lambda config
+    """Write the lambda config to the config file.
     """
     with open("{}.yaml".format(lambda_name), "w", encoding='utf-8') as f: #pylint: disable=C0103
         f.write(yaml.dump(config))
 
 
 def get_env_vars(config):
-    """makala
+    """Creates a dict suitable for passing as the --environment option to
+    the update-function-configuration or create-function aws CLI
+    commands.
+
     """
     if "logs" in config:
         if "level" in config["logs"]:
@@ -334,7 +340,7 @@ def get_env_vars(config):
 
 
 def render_makefile(**kwargs):
-    """makala
+    """Render the jinja2 template and create the Makefile.
     """
     file_loader = FileSystemLoader('/')
     config = kwargs["config"]
@@ -354,7 +360,10 @@ def render_makefile(**kwargs):
 
 
 def clean(files, lambda_name):
-    """Remove files on init.
+    """Remove files defined in config whenever this script is
+    executed. (Not currently called but may have some use in the
+    future)
+
     """
     for file in files:
         if "{}" in file:

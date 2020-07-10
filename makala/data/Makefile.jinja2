@@ -58,7 +58,7 @@ LAMBDA_CONFIGURATION = \
 all: $(ZIPFILE) $(LAMBDA_ARN) $(LAMBDA_CONFIGURATION) Makefile
 
 $(ROLE_ARN):
-	python makala.py -o $(LAMBDA_NAME)
+	makala -o $(LAMBDA_NAME)
 
 # initial creation of the Lambda
 $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP)
@@ -113,7 +113,7 @@ $(ZIPFILE): $(LAMBDA) $(MODULES)
 	zip -u -g $@ $< || true
 
 Makefile: $(LAMBDA_CONFIG)
-	python makala.py -o $(LAMBDA_NAME)
+	makala -o $(LAMBDA_NAME)
 	$(MAKE) $(MFLAGS)
 
 # update configuration if {{ name }}.yaml changes
@@ -165,6 +165,8 @@ real-clean: clean
 	  done; \
 	fi
 	aws iam delete-role --role-name $(ROLE) 2>/dev/null || true
+        # forces rebuild of role if necessary
+	touch $(LAMBDA_CONFIG)
 
 clean:
 	aws lambda delete-function --function $(LAMBDA_HANDLER) 2>/dev/null || true
