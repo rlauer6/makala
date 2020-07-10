@@ -26,56 +26,55 @@ python setup.py install
 ## Create an AWS Python Lambda
 
 1. Create a new project
-```
-mkdir foo
-cd foo
-```
-1. Create a configuration file 
-```
-cat <foo.yaml
-description: `my foo handler`
-handler: handler
-logs:
-  level: info
-  retention: 7
-name: foo
-^D
-```
-1. Create the `Makefile`
-```
-$ makala foo
-```
-1. Create a Python handler
-```
-cat <foo.py
-import json
 
-def handler(event, context):
-    return json.dumps(event)
-^D
-```
+        mkdir foo
+        cd foo
+
+1. Create a configuration file 
+
+        cat <foo.yaml
+        description: `my foo handler`
+        handler: handler
+        logs:
+          level: info
+          retention: 7
+        name: foo
+        ^D
+
+1. Create the `Makefile`
+
+        makala foo
+
+1. Create a Python handler
+
+        cat <foo.py
+        import json
+        
+        def handler(event, context):
+            return json.dumps(event)
+        ^D
+
 1. Install the Lambda
-```
-make
-```
+
+        make
+
 1. Test your Lambda
-```
-aws lambda invoke --function-name foo --payload '{"test":1}' foo.rsp
-```
+
+        aws lambda invoke --function-name foo --payload '{"test":1}' foo.rsp
+
 1. Make changes to the Lambda and redeploy
-```
-touch foo.py
-make
-```
+
+        touch foo.py
+        make
+
 1. Make changes to your Lambda configuration and redeploy
-```
-touch foo.yaml
-make
-```
+
+        touch foo.yaml
+        make
+
 1. Delete your Lambda
-```
-make real-clean
-```
+
+        make real-clean
 
 # Gory Details
 
