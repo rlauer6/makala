@@ -2,12 +2,13 @@
 
 # Background
 
-`makala` is a Python script to create a light weight Makefile based serverless
-framework for AWS Python lambdas.
+`makala` is a Python script to create a light weight Makefile based
+serverless framework for AWS Python lambdas.
 
 # Why?
 
-Sometimes a `Makefile` is a good thing and I'm smitten with Makefiles.
+Sometimes a `Makefile` is a good thing and besides I'm smitten with
+Makefiles.
 
 # Requirements
 
@@ -85,7 +86,13 @@ python setup.py install
 
 # Gory Details
 
-...TBD
+This script essentially creates a `Makefile` that will help you
+quickly deploy and update Python based Lambda functions.  The
+`Makefile` has been written to __do the right thing__ based on changes
+to either your Lambda configuration file or the Lambda script itself.
+Additionally, you can add dependencies on modules or other artifacts
+you need to deploy by editing the `Makefile`.
+
 
 ## Adding Modules
 
@@ -104,6 +111,10 @@ python setup.py install
 ...TBD
 
 ## virtualenv
+
+...TBD
+
+## Setting defaults in `makala.cfg`
 
 ...TBD
 
@@ -130,8 +141,20 @@ touch foo.py
 make
 ```
 
+# FAQ
+
+__Why is the script called "makala"?__
+
+Originally it was going to be 'make-a-lambda' but that hardly rolls of
+the tounge.  A mangled version of that might be 'makala' which is the
+Hawaiian word that means "loosen" or "untie" among other meanings.  So
+the hope here is that 'makala' loosens the friction for creating a Lambda.
+
 # TBDs
 
 * [ ] option to create configuration stub
 * [ ] option to create configuration from an existing lambda
+* [ ] add template path to configuration to allow users to edit
+      template
+
 

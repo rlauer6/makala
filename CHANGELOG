@@ -1,3 +1,12 @@
+Sat Jul 11 11:42:25 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* Makefile:
+	- add data/Makefile.jinja2, data/makala.cfg as dependencies for package build
+	* README.md: place holder for makala.cfg docs
+	* makala/data/Makefile.jinja2
+	- add pattern rule for .pyc files
+	- add .pyc file to CLEANFILES
+
 Sat Jul 11 11:20:21 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/makala.py

@@ -10,6 +10,8 @@ MAKALA_SOURCE = \
 GMAKALA_SOURCE = $(MAKALA_SOURCE:.py=.pyc)
 
 PACKAGE_FILES = \
+    makala/data/makala.cfg \
+    makala/data/Makefile.jinja2 \
     CHANGELOG \
     LICENSE.txt \
     README.md

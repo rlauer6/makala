@@ -36,6 +36,8 @@ ROLE = {{ role }}
 LAMBDA = \
     $(LAMBDA_NAME).py
 
+GLAMBDA = $(LAMBDA:.py=.pyc)
+
 LAMBDA_ARN = \
     $(CACHE_DIR)/$(LAMBDA_NAME).arn
 
@@ -89,8 +91,10 @@ $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP)
 	  fi; \
 	fi
 
-$(ZIPFILE): $(LAMBDA) $(MODULES)
-	python -m py_compile $<
+%.pyc: %.py
+	python -c "import py_compile; py_compile.compile('"$<"', '"$@"')"
+
+$(ZIPFILE): $(GLAMBDA) $(MODULES)
 
 	# zip/update dependencies
 	currdir=$$(pwd); \
@@ -156,7 +160,8 @@ CLEANFILES = \
     $(LAMBDA_ENV) \
     $(LAMBDA_ARN) \
     $(ROLE_ARN) \
-    $(VPC_CONFIG)
+    $(VPC_CONFIG) \
+    $(GLAMBDA)
 
 real-clean: clean
 	if $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) >/dev/null 2>&1); then \
