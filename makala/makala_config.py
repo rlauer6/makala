@@ -38,13 +38,13 @@ class MakalaConfig(): # pylint: disable=R0902, disable=C0116
         return self._create_role
 
     def __init__(self, **kwargs): # pylint: disable=R0912
-        name = kwargs.get("name") or "makala.cfg"
+        path = kwargs.get("path") or "makala.cfg"
 
         config = configparser.ConfigParser()
-        if os.path.exists(name):
-            config.read(name)
+        if os.path.exists(path):
+            config.read(path)
         else:
-            raise Exception("no {} file found.".format(name))
+            raise Exception("no {} file found.".format(path))
 
         defaults = config["DEFAULT"]
 

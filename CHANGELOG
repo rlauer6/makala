@@ -1,3 +1,11 @@
+Sat Jul 11 11:20:21 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/makala.py
+	- use local makala.cfg if exists
+	-  path, not name for MakalaConfig
+	* makala/makala_config.py
+	(__init__): path, not name
+
 Sat Jul 11 11:06:06 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* Makefile: pattern rule for all .py files

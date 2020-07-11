@@ -19,9 +19,14 @@ from jinja2 import Environment, FileSystemLoader
 
 import makala.aws.utils as aws
 from makala import MakalaConfig
+from makala import LambdaConfig
 
-config_name = pkg_resources.resource_filename("makala", 'data/makala.cfg')
-makala_config = MakalaConfig(name=config_name)
+if os.path.exists('makala.cfg'):
+    config_path = "makala.cfg"
+else:
+    config_path = pkg_resources.resource_filename("makala", 'data/makala.cfg')
+
+makala_config = MakalaConfig(path=config_path)
 
 def main():
     """makala - a Makefile based serverless framework for AWS Lambdas
