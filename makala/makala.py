@@ -66,44 +66,31 @@ class MakalaConfig(): # pylint: disable=R0902, disable=C0116
 
         defaults = config["DEFAULT"]
 
-        if "region" in defaults:
-            self._region = config["DEFAULT"]["region"]
-        else:
-            self._region = "us-east-1"
+        self._region = defaults.get("region", "us-east-1")
 
-        if "timeout" in defaults:
-            self._timeout = config["DEFAULT"]["timeout"]
-        else:
-            self._timeout = "120"
+        self._timeout = defaults.get("timeout", "120")
 
-        if "memory" in defaults:
-            self._memory = config["DEFAULT"]["memory"]
-        else:
-            self._memory = "128"
+        self._memory = defaults.get("memory", "128")
 
-        if "runtime" in defaults:
-            self._runtime = config["DEFAULT"]["runtime"]
-        else:
-            self._runtime = "python3.6"
+        self._runtime = defaults.get("runtime", "python3.6")
 
-        if "log_retention" in defaults:
-            self._log_retention = config["DEFAULT"]["log_retention"]
-        else:
-            self._log_retention = "7"
+        self._log_retention = defaults.get("log_retention", "7")
 
-        if "cache_dir" in defaults:
-            self._cache_dir = config["DEFAULT"]["cache_dir"]
-        else:
-            self._cache_dir = "cache"
+        self._cache_dir = defaults.get("cache_dir", "cache")
 
-        if "create_role" in defaults:
-            self._create_role = config["DEFAULT"]["create_role"]
-            self._create_role = self._create_role == "true"
+        if defaults.get("create_role"):
+            self._create_role = defaults.get("create_role") == "true"
         else:
             self._create_role = True
 
-        if "clean_files" in defaults:
-            self._clean_files = json.loads(config["DEFAULT"]["clean_files"])
+        self._template = defaults.get("template", "")
+
+        if defaults.get("clean_files"):
+            try:
+                self._clean_files = json.loads(config["DEFAULT"]["clean_files"])
+            except:
+                print("WARNING: clean files must be a JSON list.")
+                self._clean_files = []
         else:
             self._clean_files = []
 
@@ -125,6 +112,7 @@ def main():
     parser.add_argument('-o', '--overwrite',
                         dest="over_write",
                         action="store_true", help="replace existing Makefile if it exists")
+
     args = parser.parse_args()
     lambda_name = args.lambda_name
 

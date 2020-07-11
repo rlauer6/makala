@@ -1,3 +1,9 @@
+Sat Jul 11 09:42:08 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/makala.py:
+	(MakalConfig):
+	- use defaults.get() pattern in __init_ to provide defaults
+
 Fri Jul 10 10:33:26 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* Makefile: new
@@ -8,3 +14,5 @@ Fri Jul 10 10:33:26 2020  Rob Lauer  <rlauer6@comcast.net>
 	* makala/makala.py
 	- comments
 	- if vpc in config but not defined, provide default
+
+
