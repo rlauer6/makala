@@ -1,8 +1,17 @@
+Sat Jul 11 11:06:06 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* Makefile: pattern rule for all .py files
+	* makala/__init__.py: import classes
+	* makala/lambda_config.py: stub for now
+	* makala/makala.py: MakalaConfig
+	* makala/makala_config.py: move MakalConfig to above
+
 Sat Jul 11 09:42:08 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/makala.py:
 	(MakalConfig):
 	- use defaults.get() pattern in __init_ to provide defaults
+
 
 Fri Jul 10 10:33:26 2020  Rob Lauer  <rlauer6@comcast.net>
 
