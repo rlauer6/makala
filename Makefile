@@ -5,6 +5,8 @@ MAKALA_SOURCE = \
     makala/makala_config.py \
     makala/lambda_config.py \
     makala/aws/utils.py \
+    makala/aws/vpc_config.py \
+    makala/aws/lambda_role.py \
     setup.py
 
 GMAKALA_SOURCE = $(MAKALA_SOURCE:.py=.pyc)

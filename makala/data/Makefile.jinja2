@@ -65,7 +65,7 @@ $(ROLE_ARN):
 	makala -o $(LAMBDA_NAME)
 
 # initial creation of the Lambda
-$(LAMBDA_ARN): $(LAMBDA_LOG_GROUP)
+$(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(ROLE_ARN)
 	if ! test -d cache; then \
 	  mkdir $(CACHE_DIR); \
 	fi
@@ -118,6 +118,8 @@ $(ZIPFILE): $(GLAMBDA) $(GMODULES)
 	# zip/update lambda
 	zip -u -g $@ $< || true
 
+# anytime the lambda configuration changes we need to regenerate the
+# Makefile...
 Makefile: $(LAMBDA_CONFIG)
 	makala -o $(LAMBDA_NAME)
 	$(MAKE) $(MFLAGS)
@@ -160,7 +162,6 @@ CLEANFILES = \
     $(LAMBDA_ARN) \
     $(LAMBDA_CONFIGURATION) \
     $(LAMBDA_ENV) \
-    $(LAMBDA_ARN) \
     $(ROLE_ARN) \
     $(VPC_CONFIG) \
     $(GLAMBDA) \
@@ -174,7 +175,7 @@ real-clean: clean
 	fi
 	aws iam delete-role --role-name $(ROLE) 2>/dev/null || true
         # forces rebuild of role if necessary
-	touch $(LAMBDA_CONFIG)
+#	touch $(LAMBDA_CONFIG)
 
 clean:
 	aws lambda delete-function --function $(LAMBDA_HANDLER) 2>/dev/null || true

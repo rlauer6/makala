@@ -6,9 +6,8 @@ import argparse
 import json
 import os
 import sys
-import configparser
-import copy
 import time
+
 from datetime import datetime
 
 import pkg_resources
@@ -21,21 +20,16 @@ import makala.aws.utils as aws
 from makala import MakalaConfig
 from makala import LambdaConfig
 
-if os.path.exists('makala.cfg'):
-    config_path = "makala.cfg"
-else:
-    config_path = pkg_resources.resource_filename("makala", 'data/makala.cfg')
-
-makala_config = MakalaConfig(path=config_path)
-
 def main():
     """makala - a Makefile based serverless framework for AWS Lambdas
     """
 
+    makala_config = MakalaConfig(path=config_path)
+
     parser = argparse.ArgumentParser(description='A Makefile based serverless framework',
                                      allow_abbrev=True)
     parser.add_argument("lambda_name", type=str, help="name of the lambda function")
-    parser.add_argument("-c", "--config", dest="config_file", type=argparse.FileType('r'),
+    parser.add_argument("-c", "--config", dest="config_file", type=str,
                         help="Configuration filename. default={lambda-name}.yaml")
     parser.add_argument('-o', '--overwrite',
                         dest="over_write",
@@ -48,29 +42,46 @@ def main():
     args = parser.parse_args()
     lambda_name = args.lambda_name
 
-    try:
-        if args.config_file:
-            config = yaml.safe_load(args.config_file)
-        else:
-            with open("{}.yaml".format(lambda_name), encoding='utf-8') as f: # pylint: disable=C0103
-                config = yaml.safe_load(f)
-    except FileNotFoundError:
-        print("no {}.yaml found!".format(lambda_name))
-        sys.exit(-1)
+    if args.generate:
+        print("..tbd...create_config_stub()")
+        sys.exit(0)
 
     if os.path.exists("Makefile") and not args.over_write:
         print("Makefile exists. Use --overwrite.")
         sys.exit(-1)
 
-    # whenever we run makala, clean up files
-    clean(makala_config.clean_files, lambda_name)
+    try:
+        path = args.config_file or "{}.yaml".format(lambda_name)
+        lambda_config = LambdaConfig(path=path,
+                                     lambda_name=lambda_name,
+                                     makala_config=makala_config)
+    except Exception as e:
+        print(str(e))
+        print("ERROR: Could not read configuration file!")
+        sys.exit(-1)
 
-    validated_config = validate_config(config, lambda_name)
-    write_lambda_config(validated_config, lambda_name)
-    write_vpc_config(validated_config)
-    write_env_vars(validated_config)
+    valid_config = lambda_config.validate()
 
-    template_name = pkg_resources.resource_filename("makala", 'data/Makefile.jinja2')
+    for a in lambda_config.warnings:
+        print("WARNING: {}".format(a))
+    for a in lambda_config.errors:
+        print("ERROR: {}".format(a))
+
+    if valid_config:
+        lambda_config.save()
+    else:
+        sys.exit(-1)
+
+    if os.path.exists("Makefile.jinja2"):
+        template_name = "Makefile.jinja2"
+        tempdate_dir = os.getcwd()
+    else:
+        template_name = pkg_resources.resource_filename("makala", 'data/Makefile.jinja2')
+        template_dir = "/"
+
+    # setup a few variables needed for jinja template
+    validated_config = lambda_config.config
+
     if "vpc" in validated_config:
         validated_config["vpc_config"] = '$(VPC_CONFIG)'
         validated_config["vpc_config_option"] = '--vpc-config file://./$(VPC_CONFIG)'
@@ -80,189 +91,15 @@ def main():
 
     validated_config["cache_dir"] = makala_config.cache_dir
 
-    makefile = render_makefile(template=template_name, config=validated_config)
+    makefile = render_makefile(templat_dir=template_dir, template=template_name, config=validated_config)
     with open("Makefile", "w") as f: # pylint: disable=C0103
         f.write(makefile)
-
-
-def validate_config(config, lambda_name):
-    """Validate the configuration file.
-    """
-    validated_config = copy.deepcopy(config)
-
-    if not "name" in config:
-        validated_config["name"] = lambda_name
-
-    required_vars = {
-        "handler" : None,
-        "description" : validated_config["name"],
-        "role"    : None,
-        "memory"  : makala_config.memory,
-        "timeout" : makala_config.timeout,
-        "runtime" : makala_config.runtime,
-        "region"  : makala_config.region,
-        "logs"    : {"retention": makala_config.log_retention, "level" : "info"}
-    }
-
-    # current valid values according to:
-    #   https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutRetentionPolicy.html: pylint: disable=C0301
-    valid_log_retention_in_days = [1, 3, 5, 7, 14, 30, 60, 90, 120,
-                                   150, 180, 365, 400, 545, 731, 1827, 3653]
-
-    for var in required_vars:  # pylint: disable=C0103
-        if not var in config:
-            if required_vars[var] is None:
-                print("ERROR: no {} defined in config".format(var))
-            else:
-                validated_config[var] = required_vars[var]
-
-    if ("logs" in config and
-            "retention" in config["logs"] and not
-            config["logs"]["retention"] in valid_log_retention_in_days):
-        error_msg = "ERROR: invalid log retention value must be one of {}"
-        print(error_msg.format(str(valid_log_retention_in_days)))
-
-    if "vpc" in config:
-        validate_vpc_config(validated_config)
-
-    role_arn = None
-    role_name = config.get("role")
-    if role_name == "default" or not role_name:
-        role_name = "{}-role".format(config["name"])
-
-    role_arn = aws.validate_role(role_name)
-
-    if not role_arn and makala_config.create_role:
-        role_arn = aws.create_lambda_role(role_name=role_name, vpc=("vpc" in config))
-        # ...may take some time to be ready for use by a Lambda...sleep(5)?
-        time.sleep(5)
-
-    if role_arn:
-        write_role_arn(role_name, role_arn)
-
-    return validated_config
-
-
-def validate_vpc_config(config):
-    """Validate the vpc object in the configuration.
-    """
-    vpc_config_valid = True
-
-    if "vpc" in config:
-        vpc_config = config["vpc"]
-        if isinstance(vpc_config, dict) and "id" in vpc_config:
-            vpc_id = vpc_config["id"]
-            if vpc_id == "default":
-                vpc_config = create_default_vpc_config()
-                config["vpc"] = vpc_config
-            elif vpc_config["id"]:
-                if "security_group_ids" in vpc_config:
-                    if (isinstance(vpc_config["security_group_ids"], list) and
-                            len(vpc_config["security_group_ids"]) == 0):
-                        default_sg = aws.get_default_security_group(vpc_id)
-                        vpc_config["security_group_ids"] = [default_sg["GroupId"]]
-                    elif not isinstance(vpc_config["security_group_ids"], list):
-                        vpc_config_valid = False
-                        print("ERROR: security_group_ids must be list")
-                else:
-                    default_sg = aws.get_default_security_group(vpc_id)
-                    vpc_config["security_group_ids"] = [default_sg["GroupId"]]
-
-                if "subnet_ids" in vpc_config:
-                    if (isinstance(vpc_config["subnet_ids"], list) and
-                            len(vpc_config["subnet_ids"]) == 0):
-                        vpc_config["subnet_ids"] = aws.get_subnet_ids(vpc_id)
-                    elif not isinstance(vpc_config["subnet_ids"], list):
-                        print("ERROR: subnet_ids")
-                        vpc_config_valid = False
-                else:
-                    vpc_config["subnet_ids"] = aws.get_subnet_ids(vpc_id)
-
-        else:
-            config["vpc"] = { "id" : "default"}
-            validate_vpc_config(config)
-
-    return vpc_config_valid
-
-
-def create_default_vpc_config():
-    """Returns the a default VPC configuration
-    """
-    vpc_config = {}
-
-    default_vpc = aws.get_default_vpc()
-
-    if default_vpc:
-        default_vpc_id = default_vpc["VpcId"]
-        if default_vpc_id:
-            default_subnets = aws.get_subnet_ids(default_vpc_id)
-            if default_subnets:
-                default_security_group = aws.get_default_security_group(default_vpc_id)
-                if default_security_group:
-                    vpc_config = dict({"id": default_vpc_id,
-                                       "security_group_ids": [default_security_group["GroupId"]],
-                                       "subnet_ids": default_subnets})
-    return vpc_config
-
-
-def write_vpc_config(config):
-    """Write the vpc configuration.
-    """
-
-    if "vpc" in config:
-        vpc_config = {"SubnetIds": config["vpc"]["subnet_ids"],
-                      "SecurityGroupIds": config["vpc"]["security_group_ids"]}
-
-        with open("{}/vpc-config.json".format(makala_config.cache_dir), "w") as f:  #pylint: disable=C0103
-            f.write(json.dumps(vpc_config))
-
-
-def write_env_vars(config):
-    """Write the environment variable configuration.
-    """
-    if "env" in config:
-        with open("{}/{}-env.json".format(makala_config.cache_dir, config["name"]), "w") as f: # pylint: disable=C0103
-            f.write(json.dumps(get_env_vars(config)))
-
-
-def write_role_arn(role_name, role_arn):
-    """Write the role arn to a file.
-    """
-    with open("{}/{}.arn".format(makala_config.cache_dir, role_name), "w") as f: # pylint: disable=C0103
-        f.write(role_arn)
-
-def write_lambda_config(config, lambda_name):
-    """Write the lambda config to the config file.
-    """
-    with open("{}.yaml".format(lambda_name), "w", encoding='utf-8') as f: #pylint: disable=C0103
-        f.write(yaml.dump(config))
-
-
-def get_env_vars(config):
-    """Creates a dict suitable for passing as the --environment option to
-    the update-function-configuration or create-function aws CLI
-    commands.
-
-    """
-    if "logs" in config:
-        if "level" in config["logs"]:
-            if "env" in config:
-                config["env"]["log_level"] = config["logs"]["level"].upper()
-            else:
-                config["env"] = {"log_level" : config["logs"]["level"].upper()}
-
-    if "env" in config:
-        env_vars = dict()
-        for name in config["env"].keys():
-            env_vars[name.upper()] = config["env"][name]
-
-    return dict({"Variables": env_vars})
 
 
 def render_makefile(**kwargs):
     """Render the jinja2 template and create the Makefile.
     """
-    file_loader = FileSystemLoader('/')
+    file_loader = FileSystemLoader(kwargs.get("template_dir") or "/")
     config = kwargs["config"]
 
     env = Environment(loader=file_loader)
@@ -279,7 +116,7 @@ def render_makefile(**kwargs):
     return template.render(config)
 
 
-def clean(files, lambda_name):
+def clean_cache(files, lambda_name, cache_dir):
     """Remove files defined in config whenever this script is
     executed. (Not currently called but may have some use in the
     future)
@@ -290,7 +127,7 @@ def clean(files, lambda_name):
             name = file.format(lambda_name)
         else:
             name = file
-        name = "{}/{}".format(makala_config.cache_dir, name)
+        name = "{}/{}".format(cache_dir, name)
         if os.path.exists(name):
             os.remove(name)
 

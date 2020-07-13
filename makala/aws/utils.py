@@ -5,6 +5,19 @@ import sys
 
 import boto3
 
+def list_role_policies(role_name):
+    iam = boto3.client('iam')
+    response = iam.list_attached_role_policies(RoleName=role_name)
+    return [ p["PolicyArn"] for p in response["AttachedPolicies"]]
+
+def detach_role_policy(role_name, policy_arn):
+    iam = boto3.client('iam')
+    iam.detach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+
+def delete_role(role_name):
+    iam = boto3.client('iam')
+    iam.delete_role(RoleName=role_name)
+
 def validate_role(role_name):
     """validates a role
     """
@@ -29,7 +42,6 @@ def create_lambda_role(**kwargs):
         role_arn = create_lambda_execution_role(role_name, vpc=vpc)
 
     return role_arn
-
 
 def get_subnet_ids(vpc_id):
     """Get the subnet ids for the given VPC
