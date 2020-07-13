@@ -1,4 +1,5 @@
 import json
+import logging
 
 import  makala.aws.utils as aws
 
@@ -11,6 +12,14 @@ def main():
     print(vpc_config)
 
 class AWSVPCConfig():
+    @property
+    def logger(self):
+        return self._logger
+
+    @logger.setter
+    def logger(self, logger):
+        self._logger = logger
+
     @property
     def subnet_ids(self):
         return self._subnet_ids
@@ -61,20 +70,24 @@ class AWSVPCConfig():
         self.vpc_id = config.get("id")
         self.subnet_ids = config.get("subnet_ids")
         self.security_group_ids = config.get("security_group_ids")
+        self.logger = logging.getLogger()
 
     def validate(self):
         """Validate the vpc object in the configuration.
         """
         if self.vpc_id and self.vpc_id == "default":
             self.vpc_id = aws.get_default_vpc()["VpcId"]
-            self.subnet_ids = aws.get_subnet_ids(self.vpc_id)
+            self.logger.info("using default vpc: {}".format(self.vpc_id))
+            self.subnet_ids = aws.get_private_subnet_ids(self.vpc_id)
             self.security_group_ids = aws.get_default_security_group(self.vpc_id)["GroupId"]
         elif self.vpc_id:
             if len(self.security_group_ids) == 0:
+                self.logger.info("using default security group for vpc: {}".format(self.vpc_id))
                 self.security_group_ids = aws.get_default_security_group(self.vpc_id)["GroupId"]
 
             if len(self.subnet_ids) == 0:
-                self.subnet_ids = aws.get_subnet_ids(self.vpc_id)
+                self.logger.info("using default private subnets for vpc: {}".format(self.vpc_id))
+                self.subnet_ids = aws.get_private_subnet_ids(self.vpc_id)
         else:
             self.vpc_id = "default"
             self.validate()
@@ -82,6 +95,8 @@ class AWSVPCConfig():
         self.config = {"id": self.vpc_id,
                        "security_group_ids" : self.security_group_ids,
                        "subnet_ids" : self.subnet_ids}
+        if len(self.subnet_ids) == 0:
+            self.logger.warn("no private subnets for vpc: {}".format(self.vpc_id))
 
     def __str__(self):
         return json.dumps({"SubnetIds": self.subnet_ids, "SecurityGroupIds": self.security_group_ids})
