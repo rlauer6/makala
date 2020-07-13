@@ -112,3 +112,18 @@ def create_lambda_execution_role(role_name, **kwargs):
         logger.warn("role {} already exists".format(role_name))
 
     return role_arn
+
+def get_private_subnet_ids(vpc_id):
+    ec2 = boto3.client('ec2')
+    response = ec2.describe_route_tables(Filters = [{ "Name": "vpc-id", "Values": [ vpc_id ] }])
+    route_tables = response["RouteTables"]
+
+    private_subnets = []
+
+    for rt in route_tables:
+        routes = rt["Routes"]
+        for r in routes:
+            if r["DestinationCidrBlock"] == "0.0.0.0/0" and r.get("NatGatewayId"):
+                private_subnets = [s["SubnetId"] for s in rt["Associations"]]
+
+    return private_subnets
