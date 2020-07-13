@@ -59,7 +59,10 @@ VPC_CONFIG = \
 LAMBDA_CONFIGURATION = \
     $(CACHE_DIR)/$(LAMBDA_NAME)-config.json
 
-all: $(ZIPFILE) $(LAMBDA_ARN) $(LAMBDA_CONFIGURATION) Makefile
+LAMBDA_PERMISSION = \
+    $(CACHE_DIR)/$(LAMBDA_NAME)-permission.json
+
+all: $(ZIPFILE) $(LAMBDA_ARN) $(LAMBDA_PERMISSION) $(LAMBDA_CONFIGURATION) Makefile
 
 $(ROLE_ARN):
 	makala -o $(LAMBDA_NAME)
@@ -92,6 +95,9 @@ $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(ROLE_ARN)
 	    false; \
 	  fi; \
 	fi
+#	if test -e $@; then \
+#	  $(MAKE) $(LAMBDA_PERMISSION); \
+#	fi
 
 %.pyc: %.py
 	python -c "import py_compile; py_compile.compile('"$<"', '"$@"')"
@@ -155,6 +161,12 @@ $(LAMBDA_LOG_GROUP):
 
 	aws logs put-retention-policy --log-group-name $(LAMBDA_LOG_GROUP_NAME) \
 	  --retention-in-days $(LOG_RETENTION)
+
+$(LAMBDA_PERMISSION): $(LAMBDA_ARN)
+	FUNCTION_ARN=$$(cat $(LAMBDA_ARN)) | jq -r .FunctionArn; \
+	aws lambda add-permission --function-name $(LAMBDA_HANDLER) \
+	  --action 'lambda:InvokeFunction' --statement-id $(LAMBDA_NAME)-$$$$ \
+	  --principal $(LAMBDA_SERVICE) --output text >$@
 
 CLEANFILES = \
     $(ZIPFILE) \

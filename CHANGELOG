@@ -1,5 +1,8 @@
 Mon Jul 13 12:12:29 2020  Rob Lauer  <rlauer6@comcast.net>
 
+	[service]:
+	* makala/data/Makefile.jinja2: add service permission
+
 	[logging]:
 	* makala/aws/lambda_role.py: replace print w/logging
 	* makala/aws/utils.py: likewise
