@@ -66,12 +66,14 @@ class LambdaConfig():
 
     @path.setter
     def path(self, path):
-        if not os.path.exists(path):
-            raise FileNotFoundError(
-                errno.ENOENT, os.strerror(errno.ENOENT), path)
+        if path:
+            if not os.path.exists(path):
+                raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), path)
 
-        if not os.path.getsize(path):
-            raise Exception("{} is empty".format(path))
+            if not os.path.getsize(path):
+                raise Exception("{} is empty".format(path))
+
         self._path = path
 
     @property
@@ -91,15 +93,20 @@ class LambdaConfig():
         self._makala_config = makala_config
 
     def __init__(self, **kwargs):
-        self.path = kwargs["path"]
+        self.role = None
+        self.env = None
+        self.vpc = None
+
+        self.path = kwargs.get("path")
         self.lambda_name = kwargs["lambda_name"]
         self.makala_config = kwargs["makala_config"]
-        self.config = self._read_lambda_config()
+        if self.path:
+            self.config = self._read_lambda_config()
 
-        if "env" in self.config and isinstance(self.config["env"], dict):
-            self.env = EnvironmentVars(self.config["env"])
-        else:
-            self.env = None
+            if "env" in self.config and isinstance(self.config["env"], dict):
+                self.env = EnvironmentVars(self.config["env"])
+            else:
+                self.env = None
 
     def save(self):
         self._write_lambda_config()
@@ -219,6 +226,21 @@ class LambdaConfig():
             filename = "{}/{}.arn".format(self.makala_config.cache_dir, self.role.role)
             with open(filename, "w") as f: # pylint: disable=C0103
                 f.write(str(self.role))
+
+    def generate_stub(self):
+
+        stub = {"handler" : "handler",
+                "name"    : self.lambda_name,
+                "description" : self.lambda_name,
+                "role"    : "{}-role".format(self.lambda_name),
+                "memory"  : self.makala_config.memory,
+                "timeout" : self.makala_config.timeout,
+                "runtime" : self.makala_config.runtime,
+                "service" : "",
+                "region"  : self.makala_config.region,
+                "logs"    : {"retention": self.makala_config.log_retention, "level" : "info"}}
+
+        return yaml.dump(stub)
 
 class EnvironmentVars():
     """Object representing the environment variables for the Lambda

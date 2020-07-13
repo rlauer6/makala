@@ -37,6 +37,7 @@ def main():
         logger.setLevel(logging.WARNING)
 
     if os.path.exists('makala.cfg'):
+        logger.info("using local makala.cfg for defaults")
         config_path = "makala.cfg"
     else:
         config_path = pkg_resources.resource_filename("makala", 'data/makala.cfg')
@@ -49,7 +50,7 @@ def main():
     parser.add_argument("-c", "--config", dest="config_file", type=str,
                         help="Configuration filename. default={lambda-name}.yaml")
     parser.add_argument('-o', '--overwrite',
-                        dest="over_write",
+                        dest="overwrite",
                         action="store_true", help="replace existing Makefile if it exists")
 
     parser.add_argument('-g', '--generate-config',
@@ -60,10 +61,17 @@ def main():
     lambda_name = args.lambda_name
 
     if args.generate:
-        logger.error("not yet implemented...create_config_stub()")
+        config_name = "{}.yaml".format(lambda_name)
+        if os.path.exists(config_name) and not args.overwrite:
+            logger.error("{} exists. Use -o (overwrite) option.".format(config_name))
+            sys.exit(-1)
+
+        lambda_config = LambdaConfig(lambda_name=lambda_name, makala_config=makala_config)
+        with open(config_name, "w") as f:
+            f.write(lambda_config.generate_stub())
         sys.exit(0)
 
-    if os.path.exists("Makefile") and not args.over_write:
+    if os.path.exists("Makefile") and not args.overwrite:
         logger.error("Makefile exists. Use --overwrite.")
         sys.exit(-1)
 
@@ -91,6 +99,7 @@ def main():
     if os.path.exists("Makefile.jinja2"):
         template_name = "Makefile.jinja2"
         tempdate_dir = os.getcwd()
+        logger.info("using local Makefile template")
     else:
         template_name = pkg_resources.resource_filename("makala", 'data/Makefile.jinja2')
         template_dir = "/"
@@ -99,6 +108,7 @@ def main():
     validated_config = lambda_config.config
 
     if "vpc" in validated_config:
+        logger.info("configuring to connect function to a VPC")
         validated_config["vpc_config"] = '$(VPC_CONFIG)'
         validated_config["vpc_config_option"] = '--vpc-config file://./$(VPC_CONFIG)'
     else:
