@@ -1,3 +1,7 @@
+Mon Jul 13 13:54:36 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/makala_config.py: for int parameters
+
 Mon Jul 13 13:50:37 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/makala.py: generate stub

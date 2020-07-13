@@ -50,13 +50,13 @@ class MakalaConfig(): # pylint: disable=R0902, disable=C0116
 
         self._region = defaults.get("region", "us-east-1")
 
-        self._timeout = defaults.get("timeout", "120")
+        self._timeout = int(defaults.get("timeout", "120"))
 
-        self._memory = defaults.get("memory", "128")
+        self._memory = int(defaults.get("memory", "128"))
 
         self._runtime = defaults.get("runtime", "python3.6")
 
-        self._log_retention = defaults.get("log_retention", "7")
+        self._log_retention = int(defaults.get("log_retention", "7"))
 
         self._cache_dir = defaults.get("cache_dir", "cache")
 
