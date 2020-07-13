@@ -13,6 +13,7 @@ from datetime import datetime
 import pkg_resources
 
 import yaml
+import logging
 
 from jinja2 import Environment, FileSystemLoader
 
@@ -23,6 +24,22 @@ from makala import LambdaConfig
 def main():
     """makala - a Makefile based serverless framework for AWS Lambdas
     """
+
+    logging.basicConfig()
+    logger = logging.getLogger()
+
+    if "LOG_LEVEL" in os.environ:
+        if os.environ["LOG_LEVEL"] == "DEBUG":
+            logger.setLevel(logging.DEBUG)
+        elif os.environ["LOG_LEVEL"] == "INFO":
+            logger.setLevel(logging.INFO)
+    else:
+        logger.setLevel(logging.WARNING)
+
+    if os.path.exists('makala.cfg'):
+        config_path = "makala.cfg"
+    else:
+        config_path = pkg_resources.resource_filename("makala", 'data/makala.cfg')
 
     makala_config = MakalaConfig(path=config_path)
 
@@ -43,11 +60,11 @@ def main():
     lambda_name = args.lambda_name
 
     if args.generate:
-        print("..tbd...create_config_stub()")
+        logger.error("not yet implemented...create_config_stub()")
         sys.exit(0)
 
     if os.path.exists("Makefile") and not args.over_write:
-        print("Makefile exists. Use --overwrite.")
+        logger.error("Makefile exists. Use --overwrite.")
         sys.exit(-1)
 
     try:
@@ -56,16 +73,15 @@ def main():
                                      lambda_name=lambda_name,
                                      makala_config=makala_config)
     except Exception as e:
-        print(str(e))
-        print("ERROR: Could not read configuration file!")
+        logger.error("{}-{}".format(str(e), "could not read configuration file!"))
         sys.exit(-1)
 
     valid_config = lambda_config.validate()
 
     for a in lambda_config.warnings:
-        print("WARNING: {}".format(a))
+        logger.warning(a)
     for a in lambda_config.errors:
-        print("ERROR: {}".format(a))
+        logger.error(a)
 
     if valid_config:
         lambda_config.save()

@@ -1,6 +1,7 @@
 import json
 
 import makala.aws.utils as aws
+import logging
 
 def main():
     # create a role, then delete it
@@ -15,6 +16,14 @@ def main():
     lambda_role.delete()
 
 class AWSLambdaRole():
+
+    @property
+    def logger(self):
+        return self._logger
+
+    @logger.setter
+    def logger(self, logger):
+        self._logger = logger
 
     @property
     def role_arn(self):
@@ -63,6 +72,7 @@ class AWSLambdaRole():
             self._auto_create_role = create_role == True
 
     def __init__(self, lambda_name, **kwargs):
+        self.logger = logging.getLogger()
 
         self.lambda_name = lambda_name
         self.role = kwargs.get("role")
@@ -77,9 +87,11 @@ class AWSLambdaRole():
         if not self.role_arn and self.role:
             role_arn = aws.validate_role(self.role)
             if not role_arn:
+                self.logger.info("creating lambda role: {}".format(self.role))
                 role_arn = aws.create_lambda_role(role_name=self.role, vpc=self.vpc_enabled)
 
         elif not self.role_arn and self.auto_create_role:
+            self.logger.info("creating lambda_role: {}".format(self.role))
             role_arn = aws.create_lambda_role(role_name=self.role, vpc=self.vpc_enabled)
 
         return role_arn
@@ -91,7 +103,9 @@ class AWSLambdaRole():
         if self.role_arn and self.role:
             policies = aws.list_role_policies(self.role)
             for a in policies:
+                self.logger.inf("detaching policy: {} from: {}".format(a, self.role))
                 aws.detach_role_policy(self.role, a)
+        self.logger.inf("deleting role: {}".format(self.role))
         aws.delete_role(self.role)
         self.role_arn = None
 

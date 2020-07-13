@@ -2,7 +2,7 @@
 """
 
 import sys
-
+import logging
 import boto3
 
 def list_role_policies(role_name):
@@ -100,12 +100,15 @@ def create_lambda_execution_role(role_name, **kwargs):
                  '"Statement": [{ "Effect": "Allow", ' \
                  '"Principal": {"Service": "lambda.amazonaws.com"}, ' \
                  '"Action": "sts:AssumeRole"}]}'
+        logger = logging.getLogger()
+        logger.info("creating basicexecution role: {}".format(role_name))
         role = iam.create_role(RoleName=role_name, AssumeRolePolicyDocument=policy)
         role_arn = role["Role"]["Arn"]
 
         for arn in policy_arns:
             iam.attach_role_policy(RoleName=role_name, PolicyArn=arn)
+            logger.info("attaching policy: {} to role: {}".format(arn, role_name))
     except iam.exceptions.EntityAlreadyExistsException:
-        print("WARNING: role {} already exists".format(role_name))
+        logger.warn("role {} already exists".format(role_name))
 
     return role_arn

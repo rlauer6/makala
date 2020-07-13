@@ -1,3 +1,28 @@
+Mon Jul 13 12:12:29 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	[logging]:
+	* makala/aws/lambda_role.py: replace print w/logging
+	* makala/aws/utils.py: likewise
+	* makala/makala.py: likewise
+
+Mon Jul 13 08:42:37 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	[refactor, use classes]:
+	* makala/makala.py: use AWSVPCConfig, AWSLambdaRole, LambdaConfig
+	* makala/lambda_config.py:
+	(LambdaConfig): first commit
+	(EnvironmentVars): first commit
+	* makala/aws/vpc_config.py: new
+	* makala/aws/lambd_role.py: new
+	* Makefile: add above to build
+	* makala/data/Makefile.jinja2:
+	- initial create depends on {lambda}-role.arn
+	- duplicate $(LAMBDA_ARN) in CLEANFILES
+	* makala/utils.py:
+	(list_role_policies): new
+	(detach_role_policy): new
+	(delete_role): new
+
 Sat Jul 11 17:05:07 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/data/Makefile.jinja2: compile modules
