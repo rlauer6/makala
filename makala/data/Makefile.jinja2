@@ -169,9 +169,9 @@ $(LAMBDA_PERMISSION): $(LAMBDA_ARN)
 	  touch $@; \
 	fi
 
-check: $(LAMBDA_ARN)
+check: $(ZIPFILE) $(LAMBDA_ARN)
 	STATE=$$(aws lambda get-function-configuration --function-name $(LAMBDA_NAME) | jq -r .State); \
-	test "$$STATE" = "Active"
+	echo "Function state is $$STATE"; test "$$STATE" = "Active"
 
 CLEANFILES = \
     $(ZIPFILE) \
