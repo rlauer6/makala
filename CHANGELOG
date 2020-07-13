@@ -1,3 +1,7 @@
+Mon Jul 13 15:54:55 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/makala_config.py: log message, not print
+
 Mon Jul 13 15:52:52 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/aws/vpc_config.py:

@@ -1,6 +1,7 @@
 import os
 import json
 import configparser
+import logging
 
 class MakalaConfig(): # pylint: disable=R0902, disable=C0116
     """makal config object
@@ -71,7 +72,8 @@ class MakalaConfig(): # pylint: disable=R0902, disable=C0116
             try:
                 self._clean_files = json.loads(config["DEFAULT"]["clean_files"])
             except:
-                print("WARNING: clean files must be a JSON list.")
+                logger = logging.getLogger()
+                logger.warn("clean files must be a JSON list.")
                 self._clean_files = []
         else:
             self._clean_files = []
