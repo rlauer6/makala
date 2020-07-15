@@ -1,3 +1,13 @@
+Wed Jul 15 15:55:02 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/aws/utils.py:
+	(main): new
+	(lambda_add_permission): new
+	(get_caller_identity): new
+	(get_caller_account): new
+	(list_role_policies): new
+	(create_lambda_execution_role): do not add AWSLambdaRole by default
+
 Mon Jul 13 16:11:20 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/data/Makefile.jinja2:

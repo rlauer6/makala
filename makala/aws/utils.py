@@ -4,6 +4,32 @@
 import sys
 import logging
 import boto3
+import os
+
+def main():
+    print(get_caller_account())
+    role_name = "foo-bar-{}".format(os.getpid())
+    create_lambda_role(role_name=role_name, vpc=True)
+    print(role_name)
+
+def lambda_add_permission(function_name, action, **kwargs):
+    lambda_client = boto3.client('lambda')
+
+    account = kwargs.get("account") or get_caller_account()
+    args = {"FunctionName": function_name, "Action": action, "SourceAccount" : account}
+    if kwargs.get("source_arn"):
+        args["SourceArn"] = kwargs["source_arn"]
+
+    lambda_client.add_permission(**args)
+
+def get_caller_identity():
+    sts = boto3.client('sts')
+    response = sts.get_caller_identity()
+    return response
+
+def get_caller_account():
+    identity = get_caller_identity()
+    return identity["Account"]
 
 def list_role_policies(role_name):
     iam = boto3.client('iam')
@@ -89,7 +115,7 @@ def create_lambda_execution_role(role_name, **kwargs):
     role_arn = None
     iam = boto3.client('iam')
 
-    policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaRole"]
+    policy_arns = []
     if kwargs["vpc"]:
         policy_arns.append("arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole")
     else:
@@ -127,3 +153,6 @@ def get_private_subnet_ids(vpc_id):
                 private_subnets = [s["SubnetId"] for s in rt["Associations"]]
 
     return private_subnets
+
+if __name__ == "__main__":
+    main()
