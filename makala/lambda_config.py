@@ -142,7 +142,6 @@ class LambdaConfig():
         required_vars = {
             "handler" : None,
             "description" : validated_config["name"],
-            "role"    : None,
             "memory"  : self.makala_config.memory,
             "timeout" : self.makala_config.timeout,
             "runtime" : self.makala_config.runtime,
@@ -192,10 +191,14 @@ class LambdaConfig():
             self.vpc.validate()
             validated_config["vpc"] = self.vpc.config
 
-        self.role = AWSLambdaRole(validated_config["name"],
-                                  vpc_enabled=("vpc" in self.config),
-                                  role=self.config.get("role"))
-        validated_config["role"] = self.role.role
+        if "role" in validated_config or not "custom_role" in validated_config:
+            if "custom_role" in validated_config:
+                del validated_config["custom_role"]
+
+            self.role = AWSLambdaRole(validated_config["name"],
+                                      vpc_enabled=("vpc" in self.config),
+                                      role=self.config.get("role"))
+            validated_config["role"] = self.role.role
 
         if len(errors) == 0:
             self.config = validated_config

@@ -19,6 +19,10 @@ GMODULES = $(MODULES:.py=.pyc)
 
 HANDLER_NAME = {{ handler }}
 
+CUSTOM_ROLE = {{ custom_role }}
+
+CACHE_DIR = {{ cache_dir }}
+
 # ------------------------------------------------
 
 LAMBDA_FILE = $(LAMBDA_NAME)
@@ -28,12 +32,18 @@ LAMBDA_CONFIG = $(LAMBDA_NAME).yaml
 ZIPFILE = \
     $(LAMBDA_NAME).zip
 
-CACHE_DIR = {{ cache_dir }}
-
 ROLE_ARN = \
     $(CACHE_DIR)/$(LAMBDA_ROLE).arn
 
-ROLE = {{ role }} 
+CUSTOM_ROLE_ARN = \
+    $(CACHE_DIR)/$(CUSTOM_ROLE).arn
+
+# dependency is either on a custom role or role created by makala
+ifeq ("$(LAMBDA_ROLE)", "")
+LAMBDA_ROLE_ARN=$(CUSTOM_ROLE_ARN)
+else
+LAMBDA_ROLE_ARN=$(ROLE_ARN)
+endif
 
 LAMBDA = \
     $(LAMBDA_NAME).py
@@ -64,11 +74,37 @@ LAMBDA_PERMISSION = \
 
 all: $(ZIPFILE) $(LAMBDA_ARN) $(LAMBDA_PERMISSION) $(LAMBDA_CONFIGURATION) Makefile
 
-$(ROLE_ARN):
-	makala -o $(LAMBDA_NAME)
+$(CUSTOM_ROLE_ARN): $(LAMBDA_CONFIG)
+	if test -n "$(CUSTOM_ROLE)"; then \
+	  ROLE=$$(aws iam get-role --role-name $(CUSTOM_ROLE) 2>/dev/null); \
+	  if test -n "$$ROLE"; then \
+	    echo $$ROLE | jq -r .Role.Arn > $@; \
+	  else \
+	    echo "No such role: $(CUSTOM_ROLE)"; \
+	    false; \
+	  fi; \
+	else \
+	  test -e $@ || touch $@; \
+	fi
+	test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
+
+$(ROLE_ARN): $(LAMBDA_CONFIG)
+	if test -n "$(LAMBDA_ROLE)"; then \
+	  aws iam get-role --role-name $(LAMBDA_ROLE) 2>/dev/null > $@; \
+	  if ! test -s $@; then \
+	    makala -o $(LAMBDA_NAME); \
+	    sleep 10; \
+	  else \
+	    cat $@ | jq -r .Role.Arn > $@; \
+	  fi; \
+	else \
+	  test -e $@ || touch $@; \
+	fi
+	test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
 
 # initial creation of the Lambda
-$(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(ROLE_ARN)
+$(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
+
 	if ! test -d cache; then \
 	  mkdir $(CACHE_DIR); \
 	fi
@@ -79,7 +115,7 @@ $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(ROLE_ARN)
 	if ! test -e "$@"; then \
 	  aws lambda create-function \
             {{ vpc_config_option }} \
-	    --role $$(cat $(ROLE_ARN)) \
+	    --role $$(cat $(LAMBDA_ROLE_ARN)) \
 	    --runtime $(RUNTIME) \
 	    --function-name $(LAMBDA_HANDLER) \
 	    --handler $(LAMBDA_HANDLER).$(HANDLER_NAME) \
@@ -128,22 +164,26 @@ Makefile: $(LAMBDA_CONFIG)
 	$(MAKE) $(MFLAGS)
 
 # update configuration if {{ name }}.yaml changes
-$(LAMBDA_CONFIGURATION):: $(LAMBDA_CONFIG) $(ROLE_ARN)
+$(LAMBDA_CONFIGURATION):: $(LAMBDA_CONFIG) $(LAMBDA_ROLE_ARN)
 	if test -e $(LAMBDA_ARN); then \
 	  if test -e $(LAMBDA_ENV); then \
 	    ENVIRONMENT='--environment file://./'$(LAMBDA_ENV); \
 	  fi; \
-	  aws lambda update-function-configuration \
-	    --function-name $(LAMBDA_HANDLER) \
-	    --description '{{ description }}' \
-	    {{ vpc_config_option }} \
-	    --role $$(cat $(ROLE_ARN)) \
-	    --runtime $(RUNTIME) \
-	    --function-name $(LAMBDA_HANDLER) \
-	    --handler $(LAMBDA_HANDLER).$(HANDLER_NAME) \
-	    --timeout {{ timeout }} \
-	    --memory-size {{ memory }} \
-	    $$ENVIRONMENT > $@; \
+	  STATE=$$(aws lambda get-function-configuration --function-name $(LAMBDA_NAME) | jq -r .State); \
+	  if [ "$$STATE" = "Active" ]; then \
+	    aws lambda update-function-configuration \
+	      --function-name $(LAMBDA_NAME) \
+	      --description '{{ description }}' \
+	      {{ vpc_config_option }} \
+	      --role $$(cat $(LAMBDA_ROLE_ARN)) \
+	      --runtime $(RUNTIME) \
+	      --handler $(LAMBDA_NAME).$(HANDLER_NAME) \
+	      --timeout {{ timeout }} \
+	      --memory-size {{ memory }} \
+	      $$ENVIRONMENT > $@; \
+	  else \
+	    echo "Lambda state ($$STATE) not Active"; \
+	  fi; \
 	fi
 
 $(LAMBDA_CONFIGURATION):: $(ZIPFILE)
@@ -159,15 +199,34 @@ $(LAMBDA_LOG_GROUP):
 	aws logs put-retention-policy --log-group-name $(LAMBDA_LOG_GROUP_NAME) \
 	  --retention-in-days $(LOG_RETENTION)
 
-$(LAMBDA_PERMISSION): $(LAMBDA_ARN)
+$(LAMBDA_PERMISSION): $(LAMBDA_ARN) $(LAMBDA_CONFIG)
+	if test -e "$@"; then \
+	  OLD_SERVICE=$$(cat $@ | jq -r .Principal.Service); \
+          OLD_SID=$$(cat $@ | jq -r .Sid); \
+	fi;\
 	if test -n "$(LAMBDA_SERVICE)"; then \
-	  FUNCTION_ARN=$$(cat $(LAMBDA_ARN)) | jq -r .FunctionArn; \
-	  aws lambda add-permission --function-name $(LAMBDA_HANDLER) \
-	    --action 'lambda:InvokeFunction' --statement-id $(LAMBDA_NAME)-$$$$ \
-	    --principal $(LAMBDA_SERVICE) --output text >$@; \
+	  if ! [ "$$OLD_SERVICE" = "$(LAMBDA_SERVICE)" ]; then \
+	    if test -n "$$OLD_SERVICE"; then \
+	      REMOVE_SID=$$OLD_SID; \
+	    fi; \
+	    FUNCTION_ARN=$$(cat $(LAMBDA_ARN)) | jq -r .FunctionArn; \
+	    SOURCE_ACCOUNT=$$(aws sts get-caller-identity | jq -r .Account); \
+	    aws lambda add-permission --function-name $(LAMBDA_HANDLER) \
+	      --action 'lambda:InvokeFunction' --statement-id $(LAMBDA_NAME)-$$$$ \
+	      --principal $(LAMBDA_SERVICE) \
+	      --source-account $$SOURCE_ACCOUNT --output text >$@; \
+	  fi; \
 	else \
-	  touch $@; \
+	  if test -n "$$OLD_SERVICE"; then \
+	    REMOVE_SID=$$OLD_SID; \
+	  fi; \
+	fi; \
+	if test -n "$$REMOVE_SID"; then \
+	  aws lambda remove-permission --function-name $(LAMBDA_NAME) --statement-id $$REMOVE_SID; \
+	  aws lambda get-policy --function-name $(LAMBDA_NAME) 2>/dev/null > $@ || true; \
 	fi
+
+	touch $@
 
 check: $(ZIPFILE) $(LAMBDA_ARN)
 	STATE=$$(aws lambda get-function-configuration --function-name $(LAMBDA_NAME) | jq -r .State); \
@@ -175,24 +234,28 @@ check: $(ZIPFILE) $(LAMBDA_ARN)
 
 CLEANFILES = \
     $(ZIPFILE) \
-    $(LAMBDA_LOG_GROUP) \
-    $(LAMBDA_ARN) \
-    $(LAMBDA_CONFIGURATION) \
-    $(LAMBDA_ENV) \
-    $(ROLE_ARN) \
-    $(VPC_CONFIG) \
     $(GLAMBDA) \
     $(GMODULES)
 
-real-clean: clean
-	if $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) >/dev/null 2>&1); then \
-	  for a in $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) | jq -r '.AttachedPolicies|.[]|[.PolicyArn]|.[]'); do \
-	    aws iam detach-role-policy --role-name $(ROLE) --policy-arn $$a; \
-	  done; \
-	fi
-	aws iam delete-role --role-name $(ROLE) 2>/dev/null || true
+.PHONY: clean
 
 clean:
+	rm -f $(CLEANFILES)
+
+uninstall: clean
 	aws lambda delete-function --function $(LAMBDA_HANDLER) 2>/dev/null || true
 	aws logs delete-log-group --log-group-name $(LAMBDA_LOG_GROUP_NAME) 2>/dev/null || true
-	rm -f $(CLEANFILES)
+
+	if test -z "$(CUSTOM_ROLE)"; then \
+	  if $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) >/dev/null 2>&1); then \
+	    for a in $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) | jq -r '.AttachedPolicies|.[]|[.PolicyArn]|.[]'); do \
+	      aws iam detach-role-policy --role-name $(LAMBDA_ROLE) --policy-arn $$a; \
+	    done; \
+	  fi; \
+	  aws iam delete-role --role-name $(LAMBDA_ROLE) 2>/dev/null || true; \
+	fi
+	rm -f $(LAMBDA_LOG_GROUP) \
+	  $(LAMBDA_PERMISSION) \
+	  $(LAMBDA_ROLE_ARN) \
+	  $(LAMBDA_CONFIGURATION) \
+	  $(LAMBDA_ARN)

@@ -1,3 +1,12 @@
+Wed Jul 15 15:58:35 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/lambda_config.py: custom_role option
+	* Makefile.jinja2:
+	- support custom_role option
+	- check state before doing an update
+	- add/remove permissions if changes required
+	- make uninstall instead of make real-clean
+
 Wed Jul 15 15:55:02 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/aws/utils.py:
