@@ -31,7 +31,7 @@ $(PYTHON_PACKAGE): $(GMAKALA_SOURCE) $(PACKAGE_FILES)
 	python setup.py sdist bdist_wheel
 
 install: $(PYTHON_PACKAGE)
-	pip install dist/makala-$(VERSION)-py3-none-any.whl
+	pip install -I dist/makala-$(VERSION)-py3-none-any.whl
 
 CLEANFILES = \
     build \

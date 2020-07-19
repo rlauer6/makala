@@ -1,3 +1,7 @@
+Sun Jul 19 14:20:21 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* Makefile: -I (ignore installed)
+
 Sun Jul 19 14:15:20 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/makala.py:
