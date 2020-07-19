@@ -1,3 +1,4 @@
+#--*- mode: makefile; -*-
 # --- DO NOT EDIT...this is a rendered file
 # --- {{ timestamp }}
 
@@ -13,6 +14,12 @@ LOG_RETENTION = {{ logs.retention }}
 
 LAMBDA_SERVICE = {{ service }}
 
+PACKAGES = {{ packages }}
+
+PACKAGE_FILES = {{ package_files }}
+
+GPACKAGE_FILES = $(PACKAGE_FILES:.py=.pyc)
+
 MODULES = {{ modules }}
 
 GMODULES = $(MODULES:.py=.pyc)
@@ -24,6 +31,9 @@ CUSTOM_ROLE = {{ custom_role }}
 CACHE_DIR = {{ cache_dir }}
 
 # ------------------------------------------------
+
+#  don't duplicate symlinked files, max compression, just update
+ZIP = zip -y -r9 -u
 
 LAMBDA_FILE = $(LAMBDA_NAME)
 
@@ -135,7 +145,7 @@ $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
 %.pyc: %.py
 	python -c "import py_compile; py_compile.compile('"$<"', '"$@"')"
 
-$(ZIPFILE): $(GLAMBDA) $(GMODULES)
+$(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES)
 
 	# zip/update dependencies
 	currdir=$$(pwd); \
@@ -143,7 +153,7 @@ $(ZIPFILE): $(GLAMBDA) $(GMODULES)
 	  if test -d $$a; then \
 	    cd $$currdir; \
 	    cd $$a/$(RUNTIME)/site-packages; \
-	    zip -r9 -u $$currdir/$@ * || true; \
+	    $(ZIP)  $$currdir/$@ * || true; \
 	  fi; \
 	done
 
@@ -151,6 +161,13 @@ $(ZIPFILE): $(GLAMBDA) $(GMODULES)
 	if test -n "$(MODULES)"; then \
 	  for f in $(MODULES); do \
 	    zip -r9 -u $@ $$f || true; \
+	  done; \
+	fi
+
+	# packages
+	if test -n "$(PACKAGE_FILES)"; then \
+	  for p in $(PACKAGE_FILES); do \
+	    zip -r9 -u $@ $$p; \
 	  done; \
 	fi
 
@@ -235,7 +252,8 @@ check: $(ZIPFILE) $(LAMBDA_ARN)
 CLEANFILES = \
     $(ZIPFILE) \
     $(GLAMBDA) \
-    $(GMODULES)
+    $(GMODULES) \
+    $(GPACKAGE_FILES)
 
 .PHONY: clean
 

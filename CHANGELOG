@@ -1,3 +1,10 @@
+Sun Jul 19 14:15:20 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/makala.py:
+	- packages
+	(get_files): new
+	* makala/data/Makefile.jinja2: packages
+
 Wed Jul 15 15:58:35 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/lambda_config.py: custom_role option

@@ -5,6 +5,7 @@
 import argparse
 import json
 import os
+import glob
 import sys
 import time
 
@@ -131,16 +132,39 @@ def render_makefile(**kwargs):
     env = Environment(loader=file_loader)
 
     template = env.get_template(kwargs["template"])
-    modules_text = ""
-    if "modules" in config:
-        modules = config["modules"]
-        modules_text = "\\\n    {}".format(" \\\n    ".join(modules))
 
-    config["modules"] = modules_text
+    package_files = []
+    if "packages" in config:
+        for p in config["packages"]:
+            package_files += get_files(p)
+
+    if len(package_files):
+        text = "\\\n    {}".format(" \\\n    ".join(package_files))
+        config["package_files"] = text
+
+    for f in ["modules", "packages"]:
+        text = ""
+        if f in config:
+            text_list = config[f]
+            text = "\\\n    {}".format(" \\\n    ".join(text_list))
+
+        config[f] = text
+
     config["timestamp"] = datetime.now().strftime('%Y-%m-%d %H:%M%p')
 
     return template.render(config)
 
+def get_files(path):
+    all_files = []
+    files = glob.iglob('{}/*'.format(path))
+    for f in files:
+        if os.path.isdir(f):
+            all_files = all_files + get_files(f)
+        else:
+            if not ".pyc" in f:
+                all_files.append(f)
+
+    return all_files
 
 def clean_cache(files, lambda_name, cache_dir):
     """Remove files defined in config whenever this script is
