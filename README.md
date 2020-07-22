@@ -243,7 +243,7 @@ specified a custom role using the `custom_role` option.
 
 If you don't specify a custom role, `makala` will create the role with
 the name you specify in the `role` option or it will use the default
-role name *{lamda-name}-role}*.
+role name *{lamda-name}-role*.
 
 If you have specfied a VPC in your configuration file so that your
 lambda can access VPC resources, the policy:
@@ -348,10 +348,6 @@ python -m venv .
 pip install mysql-connector
 ```
 
-## Setting defaults in `makala.cfg`
-
-
-
 # Troubleshooting
 
 _An error occurred (ResourceConflictException) when calling the
@@ -367,7 +363,7 @@ _An error occurred (InvalidParameterValueException) when calling the
 CreateFunction operation: The role defined for the function cannot be
 assumed by Lambda._
 
-This error may occur if you delete a role (`make real-clean`) and then
+This error may occur if you delete a role (`make uninstall`) and then
 attempt to create role of the same name.  Try re-deploying the Lambda:
 
 ```
