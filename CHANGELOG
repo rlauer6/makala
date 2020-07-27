@@ -1,3 +1,7 @@
+Mon Jul 27 11:21:33 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* Makefile: exit codes for python compile
+
 Mon Jul 27 08:13:35 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* README.md: log_level example
