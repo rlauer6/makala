@@ -167,7 +167,7 @@ $(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES)
 	# packages
 	if test -n "$(PACKAGE_FILES)"; then \
 	  for p in $(PACKAGE_FILES); do \
-	    zip -r9 -u $@ $$p; \
+	    zip -r9 -u $@ $$p || true; \
 	  done; \
 	fi
 

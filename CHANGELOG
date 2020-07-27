@@ -1,7 +1,12 @@
-Mon Jul 27 07:59:44 2020  Rob Lauer  <rlauer6@comcast.net>
+Mon Jul 27 08:08:33 2020  Rob Lauer  <rlauer6@comcast.net>
 
+	* makala/data/Makefile.jinja2:
+	- if no files updated in $(PACKAGES) then true
+
+Mon Jul 27 07:59:44 2020  Rob Lauer  <rlauer6@comcast.net>
 	* makala/data/Makefile.jinja2
 	- pattern rule to compile python must return exit codes
+	* README.md: updated pattern rule explanation per above
 
 Sun Jul 19 14:25:57 2020  Rob Lauer  <rlauer6@comcast.net>
 

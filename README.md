@@ -160,7 +160,7 @@ description: foo
 handler: handler
 logs:
   level: info
-    retention: 7
+  retention: 7
 memory: 128
 name: foo
 region: us-east-1
