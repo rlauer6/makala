@@ -1,3 +1,8 @@
+Mon Jul 27 16:31:42 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/makala.py:
+	(main): template_dir, not templat_dir
+
 Mon Jul 27 11:21:33 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* Makefile: exit codes for python compile

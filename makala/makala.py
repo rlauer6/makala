@@ -118,7 +118,7 @@ def main():
 
     validated_config["cache_dir"] = makala_config.cache_dir
 
-    makefile = render_makefile(templat_dir=template_dir, template=template_name, config=validated_config)
+    makefile = render_makefile(template_dir=template_dir, template=template_name, config=validated_config)
     with open("Makefile", "w") as f: # pylint: disable=C0103
         f.write(makefile)
 
