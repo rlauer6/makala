@@ -143,7 +143,7 @@ $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
 	fi
 
 %.pyc: %.py
-	python -c "import py_compile; py_compile.compile('"$<"', '"$@"')"
+	python -c "import sys; import py_compile; sys.exit(0) if py_compile.compile('"$<"', '"$@"') else sys.exit(-1)"
 
 $(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES)
 
