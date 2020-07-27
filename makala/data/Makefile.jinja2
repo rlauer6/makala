@@ -85,7 +85,7 @@ LAMBDA_PERMISSION = \
 all: $(ZIPFILE) $(LAMBDA_ARN) $(LAMBDA_PERMISSION) $(LAMBDA_CONFIGURATION) Makefile
 
 $(CUSTOM_ROLE_ARN): $(LAMBDA_CONFIG)
-	if test -n "$(CUSTOM_ROLE)"; then \
+	@if test -n "$(CUSTOM_ROLE)"; then \
 	  ROLE=$$(aws iam get-role --role-name $(CUSTOM_ROLE) 2>/dev/null); \
 	  if test -n "$$ROLE"; then \
 	    echo $$ROLE | jq -r .Role.Arn > $@; \
@@ -96,10 +96,10 @@ $(CUSTOM_ROLE_ARN): $(LAMBDA_CONFIG)
 	else \
 	  test -e $@ || touch $@; \
 	fi
-	test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
+	@test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
 
 $(ROLE_ARN): $(LAMBDA_CONFIG)
-	if test -n "$(LAMBDA_ROLE)"; then \
+	@if test -n "$(LAMBDA_ROLE)"; then \
 	  aws iam get-role --role-name $(LAMBDA_ROLE) 2>/dev/null > $@; \
 	  if ! test -s $@; then \
 	    makala -o $(LAMBDA_NAME); \
@@ -110,16 +110,16 @@ $(ROLE_ARN): $(LAMBDA_CONFIG)
 	else \
 	  test -e $@ || touch $@; \
 	fi
-	test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
+	@test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
 
 # initial creation of the Lambda
 $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
 
-	if ! test -d cache; then \
+	@if ! test -d cache; then \
 	  mkdir $(CACHE_DIR); \
 	fi
 
-	if test -e $(LAMBDA_ENV); then \
+	@if test -e $(LAMBDA_ENV); then \
 	  ENVIRONMENT='--environment file://./'$(LAMBDA_ENV); \
 	fi; \
 	if ! test -e "$@"; then \
@@ -148,7 +148,7 @@ $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
 $(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES)
 
 	# zip/update dependencies
-	currdir=$$(pwd); \
+	@currdir=$$(pwd); \
 	for a in lib lib64; do \
 	  if test -d $$a; then \
 	    cd $$currdir; \
@@ -158,14 +158,14 @@ $(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES)
 	done
 
 	# zip/update up local modules
-	if test -n "$(MODULES)"; then \
+	@if test -n "$(MODULES)"; then \
 	  for f in $(MODULES); do \
 	    zip -r9 -u $@ $$f || true; \
 	  done; \
 	fi
 
 	# packages
-	if test -n "$(PACKAGE_FILES)"; then \
+	@if test -n "$(PACKAGE_FILES)"; then \
 	  for p in $(PACKAGE_FILES); do \
 	    zip -r9 -u $@ $$p || true; \
 	  done; \
@@ -182,7 +182,7 @@ Makefile: $(LAMBDA_CONFIG)
 
 # update configuration if {{ name }}.yaml changes
 $(LAMBDA_CONFIGURATION):: $(LAMBDA_CONFIG) $(LAMBDA_ROLE_ARN)
-	if test -e $(LAMBDA_ARN); then \
+	@if test -e $(LAMBDA_ARN); then \
 	  if test -e $(LAMBDA_ENV); then \
 	    ENVIRONMENT='--environment file://./'$(LAMBDA_ENV); \
 	  fi; \
@@ -217,7 +217,7 @@ $(LAMBDA_LOG_GROUP):
 	  --retention-in-days $(LOG_RETENTION)
 
 $(LAMBDA_PERMISSION): $(LAMBDA_ARN) $(LAMBDA_CONFIG)
-	if test -e "$@"; then \
+	@if test -e "$@"; then \
 	  OLD_SERVICE=$$(cat $@ | jq -r .Principal.Service); \
           OLD_SID=$$(cat $@ | jq -r .Sid); \
 	fi;\

@@ -323,13 +323,14 @@ You could potentially use this in your Python handler.
 logger = logging.getLogger()
 
 if "LOG_LEVEL" in os.environ:
-    if os.environ["LOG_LEVEL"] == "DEBUG":
+    log_level = os.environ["LOG_LEVEL"].upper()
+    if log_level == "DEBUG":
         logger.setLevel(logging.DEBUG)
-    elif os.environ["LOG_LEVEL"] == "INFO":
+    elif log_level == "INFO":
         logger.setLevel(logging.INFO)
-    elif os.environ["LOG_LEVEL"] == "WARN":
+    elif log_level == "WARN":
         logger.setLevel(logging.WARN)
-    elif os.environ["LOG_LEVEL"] == "ERROR":
+    elif log_level == "ERROR":
         logger.setLevel(logging.ERROR)
     else:
         logger.setLevel(logging.ERROR)
