@@ -227,7 +227,7 @@ MODULES = \
 GMODULES = $(MODULES:.py=.pyc)
 ...
 %.pyc: %.py
-	python -c "import py_compile; py_compile.compile('"$<"', '"$@"')"
+	python -c "import sys; import py_compile; sys.exit(0) if py_compile.compile('"$<"', '"$@"') else sys.exit(-1)"
 ```
 
 ## Lambda Role
