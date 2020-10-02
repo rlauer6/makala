@@ -29,6 +29,14 @@ class LambdaConfig():
         self._vpc = vpc
 
     @property
+    def source_arn(self):
+        return self._source_arn
+
+    @source_arn.setter
+    def source_arn(self, source_arn):
+        self._source_arn = source_arn
+
+    @property
     def errors(self):
         return self._errors
 
@@ -199,6 +207,7 @@ class LambdaConfig():
                                       vpc_enabled=("vpc" in self.config),
                                       role=self.config.get("role"))
             validated_config["role"] = self.role.role
+            validated_config["role_arn"] = self.role.role_arn
 
         if len(errors) == 0:
             self.config = validated_config

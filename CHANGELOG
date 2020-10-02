@@ -1,3 +1,18 @@
+Fri Oct  2 16:57:05 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	[--terraform]:
+	* makala/data/lambda.jinja2: new
+	* Makefile
+	- python3
+	- added lambda.jinja2
+	* setup.py: add lambda.jinja2
+	* makala/lambda_config.py
+	(source_arn): new
+	* makala/makala.py
+	- add --terraform
+	- add --version
+	(render_makefile): renamed render_output()
+
 Mon Jul 27 16:31:42 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/makala.py:

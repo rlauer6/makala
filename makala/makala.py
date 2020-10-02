@@ -22,6 +22,8 @@ import makala.aws.utils as aws
 from makala import MakalaConfig
 from makala import LambdaConfig
 
+version = 1.2
+
 def main():
     """makala - a Makefile based serverless framework for AWS Lambdas
     """
@@ -48,6 +50,9 @@ def main():
     parser = argparse.ArgumentParser(description='A Makefile based serverless framework',
                                      allow_abbrev=True)
     parser.add_argument("lambda_name", type=str, help="name of the lambda function")
+
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + str(version))
+
     parser.add_argument("-c", "--config", dest="config_file", type=str,
                         help="Configuration filename. default={lambda-name}.yaml")
     parser.add_argument('-o', '--overwrite',
@@ -57,6 +62,10 @@ def main():
     parser.add_argument('-g', '--generate-config',
                         dest="generate",
                         action="store_true", help="generate a stub configuration file")
+
+    parser.add_argument('-t', '--terraform', dest="terraform",
+                        action="store_true", help="generate terraform instead of Makefile")
+
 
     args = parser.parse_args()
     lambda_name = args.lambda_name
@@ -72,9 +81,10 @@ def main():
             f.write(lambda_config.generate_stub())
         sys.exit(0)
 
-    if os.path.exists("Makefile") and not args.overwrite:
-        logger.error("Makefile exists. Use --overwrite.")
-        sys.exit(-1)
+    if not args.terraform:
+        if os.path.exists("Makefile") and not args.overwrite:
+            logger.error("Makefile exists. Use --overwrite.")
+            sys.exit(-1)
 
     try:
         path = args.config_file or "{}.yaml".format(lambda_name)
@@ -118,12 +128,20 @@ def main():
 
     validated_config["cache_dir"] = makala_config.cache_dir
 
-    makefile = render_makefile(template_dir=template_dir, template=template_name, config=validated_config)
-    with open("Makefile", "w") as f: # pylint: disable=C0103
-        f.write(makefile)
+    target = "Makefile" # default target
 
+    if args.terraform:
+        template_name = pkg_resources.resource_filename("makala", 'data/lambda.jinja2')
+        template_dir = "/"
+        target = "{}.tf".format(validated_config["name"])
+        if "source_arn" not in validated_config and "source_account" not in validated_config:
+            validated_config["source_account"] = aws.get_caller_account()
 
-def render_makefile(**kwargs):
+    text = render_output(template_dir=template_dir, template=template_name, config=validated_config)
+    with open(target, "w") as f: # pylint: disable=C0103
+        f.write(text)
+
+def render_output(**kwargs):
     """Render the jinja2 template and create the Makefile.
     """
     file_loader = FileSystemLoader(kwargs.get("template_dir") or "/")

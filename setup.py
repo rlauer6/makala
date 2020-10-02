@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
         version="0.0.1",
         author="Rob Lauer",
         package_data={
-                'makala': ['data/Makefile.jinja2', 'data/makala.cfg'],
+                'makala': ['data/Makefile.jinja2', 'data/makala.cfg', 'data/lambda.jinja2'],
             },
         author_email="rlauer6@comcast.net",
         description="A Makefile based serverless framework for AWS Lambda",
