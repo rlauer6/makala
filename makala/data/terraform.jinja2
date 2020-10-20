@@ -1,4 +1,5 @@
 # {{ timestamp }}
+# makala {{ version }}
 
 resource "aws_lambda_function" "{{ name }}" {
   filename         = "{{ name }}.zip"
@@ -33,7 +34,8 @@ resource "aws_lambda_permission" "{{ name }}-permission" {
   action = "lambda:InvokeFunction"
   {% if source_arn %}
   source_arn = "{{ source_arn }}"
-  {% else %}
+  {% endif %}
+  {% if source_account %}
   source_account = "{{ source_account }}"
   {% endif %}
   function_name = aws_lambda_function.{{ name }}.arn

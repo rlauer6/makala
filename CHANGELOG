@@ -1,3 +1,39 @@
+Tue Oct 20 18:27:13 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	[requirements.txt]:
+	* makala/data/Makefile.jinja2
+	- which python, which pip
+	- add dependency on requirements.txt for zipfile
+	* requirements.txt: new
+
+	[source_arn]:
+	* makala/data/Makefile.jinja2
+	- only add source-arn, source-account if present
+
+	[terraform]:
+	* README.md: document terraform creation
+	* makala/data/Makefile.jinja2
+	- add source_arn, source_account
+	* makala/data/terraform.jinja2
+	- renamed
+	- only add source_arn if present
+	- add version to template
+	* setup.py: likewise
+	* Makefile: likewise
+	* makala/makala.py
+	- create terrform directory if it does not exist
+	- terraform.tf, not lambda.tf
+	- make sure we have at least source account
+	- add version to Makefile, terraform templates
+
+Mon Oct  5 12:46:55 2020  Rob Lauer  <rlauer6@comcast.net>
+
+	[-source_arn]:
+	* makala/data/Makefile.jinja2
+	* makala/makala.py
+	* makala/data/terraform.jinja2
+	* setup.py
+
 Fri Oct  2 16:57:05 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	[--terraform]:

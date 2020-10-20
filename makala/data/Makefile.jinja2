@@ -30,6 +30,10 @@ CUSTOM_ROLE = {{ custom_role }}
 
 CACHE_DIR = {{ cache_dir }}
 
+SOURCE_ARN = {{ source_arn }}
+
+SOURCE_ACCOUNT = {{ source_account }}
+
 # ------------------------------------------------
 
 #  don't duplicate symlinked files, max compression, just update
@@ -143,17 +147,28 @@ $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
 	fi
 
 %.pyc: %.py
-	python -c "import sys; import py_compile; sys.exit(0) if py_compile.compile('"$<"', '"$@"') else sys.exit(-1)"
+	PYTHON=$$(which python3); \
+	$$PYTHON -c "import sys; import py_compile; sys.exit(0) if py_compile.compile('"$<"', '"$@"') else sys.exit(-1)"
 
-$(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES)
+zip: $(ZIPFILE)
+
+requirements.txt:
+	PIP=$$(which pip3); \
+	$$PIP freeze > $@
+
+$(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES) requirements.txt
 
 	# zip/update dependencies
-	@currdir=$$(pwd); \
+	@PERL=$$(which perl); \
+	PIP=$$(which pip3); \
+	currdir=$$(pwd); \
 	for a in lib lib64; do \
-	  if test -d $$a; then \
+	  if test -d $$a && ! test -L $$a; then \
 	    cd $$currdir; \
 	    cd $$a/$(RUNTIME)/site-packages; \
-	    $(ZIP)  $$currdir/$@ * || true; \
+	    for f in $$(cat $$currdir/requirements.txt | $$PERL -npe 's/^(.*?)==.*$$/$$1/;'); do \
+	      $$PIP show -f $$f | grep "^ " | $$PERL -npe 's/^\s+//' | $(ZIP)  -@ $$currdir/$@ || true; \
+	    done; \
 	  fi; \
 	done
 
@@ -227,11 +242,18 @@ $(LAMBDA_PERMISSION): $(LAMBDA_ARN) $(LAMBDA_CONFIG)
 	      REMOVE_SID=$$OLD_SID; \
 	    fi; \
 	    FUNCTION_ARN=$$(cat $(LAMBDA_ARN)) | jq -r .FunctionArn; \
-	    SOURCE_ACCOUNT=$$(aws sts get-caller-identity | jq -r .Account); \
+	    if test -n "$(SOURCE_ACCOUNT)"; then \
+		SOURCE_ACCOUNT_OPTION="--source-account $(SOURCE_ACCOUNT)"; \
+	    fi; \
+	    if test -n "$(SOURCE_ARN)";then \
+	      SOURCE_ARN_OPTION="--source-arn $(SOURCE_ARN)"; \
+	    fi; \
 	    aws lambda add-permission --function-name $(LAMBDA_HANDLER) \
 	      --action 'lambda:InvokeFunction' --statement-id $(LAMBDA_NAME)-$$$$ \
 	      --principal $(LAMBDA_SERVICE) \
-	      --source-account $$SOURCE_ACCOUNT --output text >$@; \
+	      $$SOURCE_ARN_OPTION \
+	      $$SOURCE_ACCOUNT_OPTION \
+	      --output text >$@; \
 	  fi; \
 	else \
 	  if test -n "$$OLD_SERVICE"; then \

@@ -1,4 +1,4 @@
-VERSION = 0.0.1
+VERSION=$(shell cat VERSION)
 
 MAKALA_SOURCE = \
     makala/makala.py \
@@ -14,7 +14,6 @@ GMAKALA_SOURCE = $(MAKALA_SOURCE:.py=.pyc)
 PACKAGE_FILES = \
     makala/data/makala.cfg \
     makala/data/Makefile.jinja2 \
-    makala/data/lambda.jinja2 \
     CHANGELOG \
     LICENSE.txt \
     README.md

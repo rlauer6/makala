@@ -1,14 +1,17 @@
 import setuptools
 
+with open("VERSION", "r") as fh:
+    version = fh.readline()
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
     setuptools.setup(
         name="makala",
-        version="0.0.1",
+        version=version,
         author="Rob Lauer",
         package_data={
-                'makala': ['data/Makefile.jinja2', 'data/makala.cfg', 'data/lambda.jinja2'],
+                'makala': ['data/Makefile.jinja2', 'data/makala.cfg', 'data/terraform.jinja2'],
             },
         author_email="rlauer6@comcast.net",
         description="A Makefile based serverless framework for AWS Lambda",

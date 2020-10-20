@@ -3,23 +3,29 @@
 # Background
 
 `makala` is a Python script to create a light weight Makefile based
-serverless framework for AWS Python lambdas.
+serverless framework for AWS Python lambdas. It can also create the
+Terraform framework for your Lambda.
 
 # Why?
 
 Sometimes a `Makefile` is a good thing and besides I'm smitten with
-Makefiles.
+Makefiles. If you're not, then you can still `makala` to create some
+terraform you can apply to create your serverless function.
 
 # Requirements
 
-* AWS CLI v2
+* AWS CLI v2 
 * AWS permissions to:
   * create IAM roles
   * create IAM policies
   * create/update/invoke Lambdas
 * boto3
+* jinja2
+* yaml
 * python >= 3.6
 * GNU make
+
+_See `requirements.txt` for latest set of required Python modules._
 
 # Quick start
 
@@ -28,6 +34,7 @@ Makefiles.
 ```
 git clone https://github.com/rlauer6/makala.git
 cd makala
+pip install -r requirements.txt
 make install
 ```
 
@@ -340,13 +347,24 @@ if "LOG_LEVEL" in os.environ:
 
 You can add add dependencies to your project by creating a virtualenv
 in the root directory of your project and then using `pip` to install
-them.  The `Makefile` file automatically add this environment to the
-deployment package.
+them.
+
 
 ```
 python -m venv .
 . bin/activate
 pip install mysql-connector
+```
+
+The `Makefile` file automatically add this environment to the
+deployment package. `Makefile` will first look for a
+`requirements.txt` file in your project root directory.  If it finds
+one, it will add only those packages to the Lambda zipfile in order to
+create the smallest possible deployment package.  If no
+`requirements.txt` is found, then `Makefile` will run:
+
+```
+pip freeze > requirements.txt
 ```
 
 # Troubleshooting
@@ -372,6 +390,24 @@ touch foo.py
 make
 ```
 
+# Terraform
+
+If you would like to produce the terraform resources associated with
+the serverless function `makala` includes the `-t` option.
+
+Normally, `makala` will create a `Makefile` you can use to create the
+resource and install your Lambda.  To create the resources using
+Terraform, use the `t` option.  This will create a `terraform`
+directory in your current directory and produce a file called
+`main.tf` which includes the terrform for creating these resources:
+
+```
+aws_lambda_function
+aws_lambda_permission
+aws_iam_role
+aws_iam_role_policy_attachment
+```
+
 # FAQ
 
 __Why is the script called "makala"?__
@@ -388,4 +424,20 @@ the hope here is that 'makala' loosens the friction for creating a Lambda.
 * [ ] add template path to configuration to allow users to edit
       template
 
+
+# NOTES
+
+* To view the permissions granted for a service to invoke a Lambda
+  function use:
+  
+```
+aws lambda get-policy --function-name foo
+```
+
+* For SES and S3 you must include the source option. If you include
+  option with no value, `makala` will determine the account id using:
+  
+```
+aws sts get-caller-identity
+```
 

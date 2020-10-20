@@ -22,7 +22,10 @@ import makala.aws.utils as aws
 from makala import MakalaConfig
 from makala import LambdaConfig
 
-version = 1.2
+try:
+    version = pkg_resources.get_distribution('makala').version
+except:
+    version = '0.0.0'
 
 def main():
     """makala - a Makefile based serverless framework for AWS Lambdas
@@ -131,11 +134,23 @@ def main():
     target = "Makefile" # default target
 
     if args.terraform:
-        template_name = pkg_resources.resource_filename("makala", 'data/lambda.jinja2')
+        template_name = pkg_resources.resource_filename("makala", 'data/terraform.jinja2')
         template_dir = "/"
-        target = "{}.tf".format(validated_config["name"])
-        if "source_arn" not in validated_config and "source_account" not in validated_config:
-            validated_config["source_account"] = aws.get_caller_account()
+        target = "terraform/main.tf"
+        if not os.path.isdir('terraform'):
+            os.mkdir("terraform")
+        else:
+            if os.path.exists(target) and not args.overwrite:
+                logger.error("target/main.tf exists. Use -o (overwrite) option.")
+                sys.exit(-1)
+
+    # at least need source_account
+    if "source_arn" not in validated_config and "source_account" not in validated_config:
+        validated_config["source_account"] = aws.get_caller_account()
+
+    # source_account present in .yaml, but no value (use default)
+    if "source_account" in validated_config and not validated_config["source_account"]:
+        validated_config["source_account"] = aws.get_caller_account()
 
     text = render_output(template_dir=template_dir, template=template_name, config=validated_config)
     with open(target, "w") as f: # pylint: disable=C0103
@@ -169,6 +184,7 @@ def render_output(**kwargs):
         config[f] = text
 
     config["timestamp"] = datetime.now().strftime('%Y-%m-%d %H:%M%p')
+    config["version"] = version
 
     return template.render(config)
 
