@@ -1,3 +1,12 @@
+Mon Feb 15 15:53:12 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	[utils.py]:
+	* makala/makala/utils.py
+	(get_private_subnet_ids): DestinationCidrBlock may not exist
+	* Makefile: PROJECT_NAME, PACKAGE_NAME
+	* .gitignore: lib, bin, lib64
+	* requirements.txt: -setuptools, -wheel
+
 Tue Oct 20 18:27:13 2020  Rob Lauer  <rlauer6@comcast.net>
 
 	[requirements.txt]:

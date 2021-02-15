@@ -147,9 +147,9 @@ def get_private_subnet_ids(vpc_id):
     private_subnets = []
 
     for rt in route_tables:
-        routes = rt["Routes"]
-        for r in routes:
-            if r["DestinationCidrBlock"] == "0.0.0.0/0" and r.get("NatGatewayId"):
+        all_routes = rt["Routes"]
+        for r in all_routes:
+            if r.get("DestinationCidrBlock") == "0.0.0.0/0" and r.get("NatGatewayId"):
                 private_subnets = [s["SubnetId"] for s in rt["Associations"]]
 
     return private_subnets

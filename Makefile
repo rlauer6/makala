@@ -1,4 +1,8 @@
 VERSION=$(shell cat VERSION)
+VERSION=$(shell cat VERSION)
+
+PROJECT_NAME=makala
+PACKAGE_NAME=$(shell echo $(PROJECT_NAME) | perl -npe 's/_/\-/g;')
 
 MAKALA_SOURCE = \
     makala/makala.py \
@@ -19,10 +23,10 @@ PACKAGE_FILES = \
     README.md
 
 %.pyc: %.py
-	/usr/bin/python36 -c "import sys; import py_compile; sys.exit(0) if py_compile.compile('"$<"', '"$@"', doraise=False) else sys.exit(-1)"
+	python3 -c "import sys; import py_compile; sys.exit(0) if py_compile.compile('"$<"', '"$@"', doraise=False) else sys.exit(-1)"
 
 PYTHON_PACKAGE = \
-    dist/makala-$(VERSION)-py3-none-any.whl
+    dist/$(PROJECT_NAME)-$(VERSION)-py3-none-any.whl
 
 all: $(PYTHON_PACKAGE)
 
@@ -31,7 +35,7 @@ $(PYTHON_PACKAGE): $(GMAKALA_SOURCE) $(PACKAGE_FILES)
 	python3 setup.py sdist bdist_wheel
 
 install: $(PYTHON_PACKAGE)
-	/usr/local/bin/pip3 install -I dist/makala-$(VERSION)-py3-none-any.whl
+	pip3 install -I dist/$(PROJECT_NAME)-$(VERSION)-py3-none-any.whl
 
 CLEANFILES = \
     build \
