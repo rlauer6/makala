@@ -30,6 +30,7 @@ resource "aws_lambda_function" "{{ name }}" {
   
 }
 
+{% if service is defined %}
 resource "aws_lambda_permission" "{{ name }}-permission" {
   action = "lambda:InvokeFunction"
   {% if source_arn %}
@@ -40,7 +41,9 @@ resource "aws_lambda_permission" "{{ name }}-permission" {
   {% endif %}
   function_name = aws_lambda_function.{{ name }}.arn
   principal = "{{ service }}"
+  statement_id = "AllowExecutionFrom{{ service }}"
 }
+{% endif %}
 
 {% if custom_role is not defined %}
 resource "aws_iam_role" "{{ name }}-role" {

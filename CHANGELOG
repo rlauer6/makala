@@ -1,3 +1,8 @@
+Tue Feb 23 18:28:25 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/data/terraform.jinja2
+	- do not include aws_lambda_permission if no principal specified
+
 Tue Feb 23 14:49:06 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	* README: typo
