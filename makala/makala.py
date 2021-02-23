@@ -35,9 +35,11 @@ def main():
     logger = logging.getLogger()
 
     if "LOG_LEVEL" in os.environ:
-        if os.environ["LOG_LEVEL"] == "DEBUG":
+        log_level = os.environ["LOG_LEVEL"].upper()
+
+        if log_level == "DEBUG":
             logger.setLevel(logging.DEBUG)
-        elif os.environ["LOG_LEVEL"] == "INFO":
+        elif log_level == "INFO":
             logger.setLevel(logging.INFO)
     else:
         logger.setLevel(logging.WARNING)
@@ -143,6 +145,9 @@ def main():
             if os.path.exists(target) and not args.overwrite:
                 logger.error("target/main.tf exists. Use -o (overwrite) option.")
                 sys.exit(-1)
+
+        if "vpc" not in validated_config:
+            validated_config["vpc"] = { "subnet_ids" : [] }
 
     # at least need source_account
     if "source_arn" not in validated_config and "source_account" not in validated_config:

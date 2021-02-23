@@ -413,7 +413,7 @@ aws_iam_role_policy_attachment
 __Why is the script called "makala"?__
 
 Originally it was going to be 'make-a-lambda' but that hardly rolls of
-the tounge.  A mangled version of that might be 'makala' which is the
+the tongue.  A mangled version of that might be 'makala' which is the
 Hawaiian word that means "loosen" or "untie" among other meanings.  So
 the hope here is that 'makala' loosens the friction for creating a Lambda.
 

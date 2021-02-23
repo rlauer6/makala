@@ -185,7 +185,7 @@ class LambdaConfig():
                 errors.append(error_msg.format(self.config["logs"]["retention"], str(valid_log_retention_in_days)))
             if self.env:
                 if "level" in self.config["logs"]:
-                    self.env.set("LOG_LEVEL", self.config["logs"]["level"])
+                    self.env.set("LOG_LEVEL", self.config["logs"]["level"].upper())
                     validated_config["env"] = self.env.env
             elif "level" in self.config["logs"]:
                 self.env = EnvironmentVars({"LOG_LEVEL": self.config["logs"]["level"].upper()})
@@ -208,6 +208,9 @@ class LambdaConfig():
                                       role=self.config.get("role"))
             validated_config["role"] = self.role.role
             validated_config["role_arn"] = self.role.role_arn
+
+        if "profile" in self.config:
+            validated_config["profile"] = self.config.get("profile")
 
         if len(errors) == 0:
             self.config = validated_config

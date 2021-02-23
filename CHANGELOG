@@ -1,3 +1,23 @@
+Tue Feb 23 14:49:06 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	* README: typo
+
+	[LOG_LEVEL]:
+	* makala/makala.py
+	- LOG_LEVEL should always be tested in uppercase
+	* makala/lambda_config.py
+	- likewise, upper case environment variable LOG_LEVEL
+
+	[profile]:
+	* makala/lambda_config.py
+	- add profile to validated_config for rendering
+	* makala/data/Makefile.jinja2
+	- add --profile to all "aws" cli commands
+
+	[terraform exception]:
+	* makala/makala.py
+	- set vpc member if not present to prevent jinja2 exception
+
 Mon Feb 15 15:53:12 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	[utils.py]:
