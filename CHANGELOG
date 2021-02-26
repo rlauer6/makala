@@ -1,3 +1,8 @@
+Fri Feb 26 16:10:51 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/data/Makefile.jinja2
+	- export AWS_PROFILE since not all commands take --profile
+
 Tue Feb 23 18:28:25 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/data/terraform.jinja2
