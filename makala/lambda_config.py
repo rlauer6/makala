@@ -6,6 +6,8 @@ import configparser
 import copy
 import json
 
+import pkg_resources
+
 from .aws.vpc_config import AWSVPCConfig
 from .aws.lambda_role import AWSLambdaRole
 
@@ -256,6 +258,12 @@ class LambdaConfig():
                 "logs"    : {"retention": self.makala_config.log_retention, "level" : "info"}}
 
         return yaml.dump(stub)
+
+    def generate_lambda_stub(self):
+        stub_path="{}".format(pkg_resources.resource_filename("makala", 'data/lambda.py'))
+        with open(stub_path) as fh: stub = fh.read()
+
+        return stub
 
 class EnvironmentVars():
     """Object representing the environment variables for the Lambda

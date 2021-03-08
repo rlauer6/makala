@@ -1,3 +1,18 @@
+Mon Mar  8 10:47:10 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	[lambda stub]:
+	* makala/lambda_config.py
+	(gnerate_lambda_stub): new
+	* makala/data/lambda.py: new
+	* VERSION: bump
+	* setup.py: +data/lambda.py
+	* makala/makala.py
+	(main): generate_lambda_stub()
+
+	[s3:source_account]:
+	* makala/makala.py
+	(main): only add source_account for S3
+
 Fri Feb 26 16:10:51 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/data/Makefile.jinja2

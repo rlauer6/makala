@@ -84,6 +84,14 @@ def main():
         lambda_config = LambdaConfig(lambda_name=lambda_name, makala_config=makala_config)
         with open(config_name, "w") as f:
             f.write(lambda_config.generate_stub())
+
+        stub_name = "{}.py".format(lambda_name)
+        if os.path.exists(stub_name) and not args.overwrite:
+            logger.error("{} exists. Use -o (overwrite) option.".format(stub_name))
+
+        with open(stub_name, "w") as f:
+            f.write(lambda_config.generate_lambda_stub())
+
         sys.exit(0)
 
     if not args.terraform:
@@ -149,13 +157,16 @@ def main():
         if "vpc" not in validated_config:
             validated_config["vpc"] = { "subnet_ids" : [] }
 
-    # at least need source_account
+    # at least need source_account for S3
     if "source_arn" not in validated_config and "source_account" not in validated_config:
         validated_config["source_account"] = aws.get_caller_account()
 
     # source_account present in .yaml, but no value (use default)
-    if "source_account" in validated_config and not validated_config["source_account"]:
-        validated_config["source_account"] = aws.get_caller_account()
+    if "s3" in validated_config.get("service"):
+        if "source_account" in validated_config and not validated_config["source_account"]:
+            validated_config["source_account"] = aws.get_caller_account()
+    else:
+        validated_config["source_account"] = ""
 
     text = render_output(template_dir=template_dir, template=template_name, config=validated_config)
     with open(target, "w") as f: # pylint: disable=C0103
