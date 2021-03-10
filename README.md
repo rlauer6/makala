@@ -3,14 +3,14 @@
 # Background
 
 `makala` is a Python script to create a light weight Makefile based
-serverless framework for AWS Python lambdas. It can also create the
+serverless framework for AWS Python based Lambdas. It can also create the
 Terraform framework for your Lambda.
 
 # Why?
 
 Sometimes a `Makefile` is a good thing and besides I'm smitten with
 Makefiles. If you're not, then you can still `makala` to create some
-terraform you can apply to create your serverless function.
+Terraform you can apply to create your serverless function.
 
 # Requirements
 
@@ -191,6 +191,8 @@ virtual environment for your Python handler
   * timeout
   * role
   * etc
+* a role
+* permissions
 
 When you invoke `make` the first time, the Lambda function and role if
 necessary will be created along with several target files in your
@@ -218,6 +220,9 @@ located.  It should reside in the root of your project.
 packages:
 - my_package
 ```
+
+To add other packages that you have added to your virtual enviroment,
+add a `requirements.txt` file as described later in this `README`.
 
 After editing the configuration file run `make`. Running `make` will
 rebuild the zip file and redeploy your Lambda. Note that the
@@ -343,14 +348,14 @@ if "LOG_LEVEL" in os.environ:
         logger.setLevel(logging.ERROR)
 ```
 
-## virtualenv
+## Adding Package Dependencies
 
 You can add add dependencies to your project by creating a virtualenv
 in the root directory of your project and then using `pip` to install
 them.
 
 
-```
+```sh
 python -m venv .
 . bin/activate
 pip install mysql-connector
@@ -363,7 +368,7 @@ one, it will add only those packages to the Lambda zipfile in order to
 create the smallest possible deployment package.  If no
 `requirements.txt` is found, then `Makefile` will run:
 
-```
+```sh
 pip freeze > requirements.txt
 ```
 
@@ -392,14 +397,14 @@ make
 
 # Terraform
 
-If you would like to produce the terraform resources associated with
-the serverless function `makala` includes the `-t` option.
+If you would like to produce the Terraform resources associated with
+the serverless function `makala` include the `-t` option.
 
 Normally, `makala` will create a `Makefile` you can use to create the
 resource and install your Lambda.  To create the resources using
-Terraform, use the `t` option.  This will create a `terraform`
+Terraform, use the `-t` option.  This will create a `terraform`
 directory in your current directory and produce a file called
-`main.tf` which includes the terrform for creating these resources:
+`main.tf` which includes the Terrform for creating these resources:
 
 ```
 aws_lambda_function
@@ -440,4 +445,3 @@ aws lambda get-policy --function-name foo
 ```
 aws sts get-caller-identity
 ```
-

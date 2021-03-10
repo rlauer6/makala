@@ -1,3 +1,10 @@
+Wed Mar 10 10:53:12 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	* makala/makala.py
+	- warn if no source_arn
+	- warn if no source_account for S3
+	* README.md: tweaks
+
 Wed Mar 10 09:00:40 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	[gitignore]:

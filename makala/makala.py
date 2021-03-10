@@ -30,7 +30,6 @@ except:
 def main():
     """makala - a Makefile based serverless framework for AWS Lambdas
     """
-
     logging.basicConfig()
     logger = logging.getLogger()
 
@@ -157,16 +156,22 @@ def main():
         if "vpc" not in validated_config:
             validated_config["vpc"] = { "subnet_ids" : [] }
 
-    # at least need source_account for S3
+    # at least need source_account?...for S3?...maybe warning if no source_arn?
     if "source_arn" not in validated_config and "source_account" not in validated_config:
         validated_config["source_account"] = aws.get_caller_account()
 
     # source_account present in .yaml, but no value (use default)
-    if "s3" in validated_config.get("service"):
+    service = validated_config.get("service")
+    if "s3" in service:
         if "source_account" in validated_config and not validated_config["source_account"]:
-            validated_config["source_account"] = aws.get_caller_account()
+            account = aws.get_caller_account()
+            logger.warn("no source_account defined...adding default account {}".format(account))
+            validated_config["source_account"] = account
     else:
         validated_config["source_account"] = ""
+
+    if not validated_config["source_arn"]:
+        logger.warn("no source_arn defined")
 
     text = render_output(template_dir=template_dir, template=template_name, config=validated_config)
     with open(target, "w") as f: # pylint: disable=C0103
