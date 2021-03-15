@@ -1,6 +1,10 @@
 # {{ timestamp }}
 # makala {{ version }}
 
+locals {
+  security_group_id = data.aws_security_group.security_group.id
+}
+
 resource "aws_lambda_function" "{{ name }}" {
   filename         = "{{ name }}.zip"
   function_name    = "{{ name }}"
@@ -41,7 +45,6 @@ resource "aws_lambda_permission" "{{ name }}-permission" {
   {% endif %}
   function_name = aws_lambda_function.{{ name }}.arn
   principal = "{{ service }}"
-  statement_id = "AllowExecutionFrom{{ service }}"
 }
 {% endif %}
 
@@ -76,4 +79,20 @@ resource "aws_iam_role_policy_attachment" "{{ name }}-policy-attachment" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 {% endif %}
 }
+{% endif %}
+
+{%if service == "events.amazonaws.com" %}
+resource "aws_cloudwatch_event_rule" "event_rule" {
+  name        = "{{ name }}-event"
+  description = ""
+  
+  schedule_expression = ""
+  is_enabled = true 
+}
+
+resource "aws_cloudwatch_event_target" "event_target" {
+  rule = "{{ name }}-event"
+  arn = aws_lambda_function.{{ name }}.arn
+}
+  
 {% endif %}

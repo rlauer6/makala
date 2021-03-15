@@ -8,6 +8,7 @@ import os
 import glob
 import sys
 import time
+import shutil
 
 from datetime import datetime
 
@@ -142,40 +143,57 @@ def main():
 
     target = "Makefile" # default target
 
-    if args.terraform:
-        template_name = pkg_resources.resource_filename("makala", 'data/terraform.jinja2')
-        template_dir = "/"
-        target = "terraform/main.tf"
-        if not os.path.isdir('terraform'):
-            os.mkdir("terraform")
-        else:
-            if os.path.exists(target) and not args.overwrite:
-                logger.error("target/main.tf exists. Use -o (overwrite) option.")
-                sys.exit(-1)
-
-        if "vpc" not in validated_config:
-            validated_config["vpc"] = { "subnet_ids" : [] }
-
     # at least need source_account?...for S3?...maybe warning if no source_arn?
     if "source_arn" not in validated_config and "source_account" not in validated_config:
         validated_config["source_account"] = aws.get_caller_account()
 
     # source_account present in .yaml, but no value (use default)
     service = validated_config.get("service")
+    account = aws.get_caller_account()
     if "s3" in service:
         if "source_account" in validated_config and not validated_config["source_account"]:
-            account = aws.get_caller_account()
             logger.warn("no source_account defined...adding default account {}".format(account))
             validated_config["source_account"] = account
     else:
         validated_config["source_account"] = ""
 
+    validated_config["account"] = account
+
     if not validated_config["source_arn"]:
         logger.warn("no source_arn defined")
 
-    text = render_output(template_dir=template_dir, template=template_name, config=validated_config)
-    with open(target, "w") as f: # pylint: disable=C0103
-        f.write(text)
+    if not args.terraform:
+        text = render_output(template_dir=template_dir, template=template_name, config=validated_config)
+        with open(target, "w") as f: # pylint: disable=C0103
+            f.write(text)
+    else:
+        if not os.path.isdir('terraform'):
+            os.mkdir("terraform")
+
+        if not os.path.exists("terraform/Makefile"):
+            shutil.copyfile(pkg_resources.resource_filename("makala", "data/Makefile-terraform"), "terraform/Makefile")
+
+        if "vpc" not in validated_config:
+            validated_config["vpc"] = { "subnet_ids" : [] }
+        else:
+            validated_config["security_group_name"] = validated_config["vpc"]["security_group_name"]
+
+        templates = {
+            "terraform": "main.tf",
+            "terraform-provider": "provider.tf",
+            "terraform-variables" : "variables.tfvars"
+            }
+
+        for t in templates.keys():
+            target = "terraform/{}".format(templates[t])
+            template_name = pkg_resources.resource_filename("makala", "data/{}.jinja2".format(t))
+            text = render_output(template_dir=template_dir, template=template_name, config=validated_config)
+
+            if os.path.exists(target) and not args.overwrite:
+                logger.error("{} exists. Use -o (overwrite) option.".format(target))
+            else:
+                with open(target, "w") as f: # pylint: disable=C0103
+                    f.write(text)
 
 def render_output(**kwargs):
     """Render the jinja2 template and create the Makefile.

@@ -1,0 +1,40 @@
+terraform {
+  backend "local" {
+    path = "state/terraform.tfstate"
+  }
+}
+
+provider "aws" {
+  shared_credentials_file = "~/.aws/credentials"
+  profile                 = var.profile
+  region                  = var.region
+  max_retries = 1
+}
+
+variable "region" {
+  default = "{{ region }}"
+}
+
+variable "profile" {
+  default = "{{ profile }}"
+}
+
+variable "account" {
+  default = "{{ account }}"
+}
+
+variable "log_level" {
+  default = "info"
+}
+
+variable "env" {
+  default = "{{ profile }}"
+}
+
+variable "security_group_name" {
+  default = "{{ security_group_name }}"
+}
+
+data "aws_security_group" "security_group" {
+  name = "{{ security_group_name }}"
+}

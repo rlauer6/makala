@@ -34,6 +34,14 @@ class AWSVPCConfig():
             self._subnet_ids = []
 
     @property
+    def security_group_name(self):
+        return self._security_group_name
+
+    @security_group_name.setter
+    def security_group_name(self, security_group_name):
+        self._security_group_name = security_group_name
+
+    @property
     def vpc_id(self):
         return self._vpc_id
 
@@ -70,6 +78,7 @@ class AWSVPCConfig():
         self.vpc_id = config.get("id")
         self.subnet_ids = config.get("subnet_ids")
         self.security_group_ids = config.get("security_group_ids")
+        self.security_group_name = config.get("security_group_name")
         self.logger = logging.getLogger()
 
     def validate(self):
@@ -81,7 +90,15 @@ class AWSVPCConfig():
             self.subnet_ids = aws.get_private_subnet_ids(self.vpc_id)
             self.security_group_ids = aws.get_default_security_group(self.vpc_id)["GroupId"]
         elif self.vpc_id:
-            if len(self.security_group_ids) == 0:
+            if self.security_group_name:
+                sg = aws.get_security_group_by_name(self.vpc_id, self.security_group_name)
+                if sg:
+                    if len(self.security_group_ids):
+                        if not sg["GroupId"] in self.security_group_ids:
+                            self.security_group_ids.append(sg["GroupId"])
+                    else:
+                        self.security_group_ids = sg["GroupId"]
+            elif len(self.security_group_ids) == 0:
                 self.logger.info("using default security group for vpc: {}".format(self.vpc_id))
                 self.security_group_ids = aws.get_default_security_group(self.vpc_id)["GroupId"]
 
@@ -92,14 +109,20 @@ class AWSVPCConfig():
             self.vpc_id = "default"
             self.validate()
 
-        self.config = {"id": self.vpc_id,
-                       "security_group_ids" : self.security_group_ids,
-                       "subnet_ids" : self.subnet_ids}
+        self.config = {
+            "id": self.vpc_id,
+            "security_group_ids" : self.security_group_ids,
+            "subnet_ids" : self.subnet_ids
+            }
+        if self.security_group_name:
+            self.logger.info("setting name: {}".format(self.security_group_name))
+            self.config["security_group_name"] = self.security_group_name
+
         if len(self.subnet_ids) == 0:
             self.logger.warn("no private subnets for vpc: {}".format(self.vpc_id))
 
     def __str__(self):
-        return json.dumps({"SubnetIds": self.subnet_ids, "SecurityGroupIds": self.security_group_ids})
+        return json.dumps({"SubnetIds": self.subnet_ids, "SecurityGroupIds": self.security_group_ids, "SecurityGroupName": self.security_group_name})
 
 if __name__ == "__main__":
     main()

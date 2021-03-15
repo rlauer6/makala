@@ -1,3 +1,32 @@
+Mon Mar 15 16:33:39 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	[terraform]:
+	* makala/data/Makefile-terraform: new
+	* makala/data/terraform-provider.jinja2: new
+	* makala/data/terraform-variables.jinja2: new
+	* VERSION: bump
+	* makala/aws/utils.py
+	(get_security_group_by_name): new
+	* makala/aws/vpc_config.py
+	(security_group_name): new
+	(__init__): security_group_name
+	(validate):
+	- get security group by name if name provided
+	- set security group name in config
+	* makala/data/Makefile.jinja2
+	- + ACCOUNT
+	(check): .State may not exist in config
+	(plan): new
+	(apply): new
+	* makala/data/terraform.jinja2
+	(locals): security_group_id
+	(aws_lamda_function): -statement id
+	(aws_cloudwatch_event_rule): new
+	(aws_cloudwatch_event_target): new
+	* makala/lambda_config.py: formatting
+	* makala/makala.py: write new terraform files
+	* setup.py: added new terraform files to package
+
 Wed Mar 10 10:53:12 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	* makala/makala.py

@@ -246,16 +246,18 @@ class LambdaConfig():
 
     def generate_stub(self):
 
-        stub = {"handler" : "handler",
-                "name"    : self.lambda_name,
-                "description" : self.lambda_name,
-                "role"    : "{}-role".format(self.lambda_name),
-                "memory"  : self.makala_config.memory,
-                "timeout" : self.makala_config.timeout,
-                "runtime" : self.makala_config.runtime,
-                "service" : "",
-                "region"  : self.makala_config.region,
-                "logs"    : {"retention": self.makala_config.log_retention, "level" : "info"}}
+        stub = {
+            "handler" : "handler",
+            "name"    : self.lambda_name,
+            "description" : self.lambda_name,
+            "role"    : "{}-role".format(self.lambda_name),
+            "memory"  : self.makala_config.memory,
+            "timeout" : self.makala_config.timeout,
+            "runtime" : self.makala_config.runtime,
+            "service" : "",
+            "region"  : self.makala_config.region,
+            "logs"    : {"retention": self.makala_config.log_retention, "level" : "info"}
+            }
 
         return yaml.dump(stub)
 

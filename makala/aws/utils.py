@@ -96,6 +96,22 @@ def get_default_security_group(vpc_id):
 
     return default_sg
 
+def get_security_group_by_name(vpc_id, name):
+    """Get the security group with the given name
+    """
+
+    ec2 = boto3.client('ec2')
+
+    security_groups = ec2.describe_security_groups(Filters=[{ "Name":"vpc-id", "Values": [vpc_id]}])
+    if security_groups:
+        security_groups = security_groups.get("SecurityGroups")
+
+    if security_groups:
+        for sg in security_groups:
+            if sg["GroupName"] == name:
+                return sg
+
+    return None
 
 def get_default_vpc():
     """Get the default VPC configuration.

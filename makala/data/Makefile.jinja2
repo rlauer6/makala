@@ -36,6 +36,8 @@ SOURCE_ARN = {{ source_arn }}
 
 SOURCE_ACCOUNT = {{ source_account }}
 
+ACCOUNT = {{ account }}
+
 # ------------------------------------------------
 
 #  don't duplicate symlinked files, max compression, just update
@@ -277,7 +279,11 @@ $(LAMBDA_PERMISSION): $(LAMBDA_ARN) $(LAMBDA_CONFIG)
 
 check: $(ZIPFILE) $(LAMBDA_ARN)
 	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
-	STATE=$$(aws lambda get-function-configuration --function-name $(LAMBDA_NAME) | jq -r .State); \
+	aws lambda get-function-configuration --function-name $(LAMBDA_NAME) > $(LAMBDA_ARN); \
+	STATE=$$(cat $(LAMBDA_ARN) | jq -r .State); \
+	if [ "$$STATE" = "null" ]; then \
+	  STATE="Active"; \
+	fi; \
 	echo "Function state is $$STATE"; test "$$STATE" = "Active"
 
 CLEANFILES = \
@@ -286,7 +292,15 @@ CLEANFILES = \
     $(GMODULES) \
     $(GPACKAGE_FILES)
 
-.PHONY: clean
+plan:
+	cd terraform; \
+	make plan
+
+apply:
+	cd terraform; \
+	make apply
+
+.PHONY: clean plan apply
 
 clean:
 	rm -f $(CLEANFILES)
