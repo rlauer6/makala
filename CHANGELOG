@@ -1,3 +1,57 @@
+Thu Mar 18 08:10:25 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	* README.md
+	- new features
+	- more explanation for Terraform support
+	* VERSION: bump
+
+	[Makefile]:
+	* makala/data/Makefile.jinja2
+	- conditionally add AWS_PROFILE, SOURCE_ARN, SOURCE_ACCOUNT
+	- remove '@' to show make steps
+	- add DEBUG (set -x)
+	($(ROLE_ARN))
+	- don't write role to target until end
+	($(ZIPFILE))
+	- touch item being added to zip file to create consistent
+	timestamp
+
+	[profile]:
+	* makala/lambda_config.py
+	(LamdaConfig)
+	- pass profile to AWSVPCConfig
+	- pass profile to AWSLambdaRole
+	* makala/aws/utils.py
+	(get_iam_client): new
+	(get_ec2_client): new
+	(get_sts_client): new
+	(create_lambda_role):
+	- accept profile arg
+	- pass profile arg to create_lambda_execution_role
+	(get_subnet_ids)
+	- use get_ec2_client()
+	- accept profile arg
+	(get_default_security_group): likewise
+	(get_security_group_by_name): likewise
+	(get_default_vpc): likewise
+	(get_private_subnet_ids): likewise
+	(create_lambda_execution_role)
+	- accept profile arg
+	- use get_iam_client()
+	* makala/aws/vpc_config.py
+	(profile): new
+	(__init__): accept profile arg
+	(validate): pass profile to AWS utilities
+
+	[makala]:
+	* makala/makala.py
+	- add -s, --service option
+	- accept lambda-name or lambda-name.yaml
+	- warn if using local Makefile template
+	- copy Makefile.jinja2 to cwd
+	- make sure at least SOURCE_ACCOUNT is set for s3/ses
+	- do not provide default if source_account is present in config but None
+
 Mon Mar 15 16:33:39 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	[terraform]:

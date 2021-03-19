@@ -10,6 +10,7 @@ import pkg_resources
 
 from .aws.vpc_config import AWSVPCConfig
 from .aws.lambda_role import AWSLambdaRole
+import  makala.aws.utils as aws
 
 class LambdaConfig():
     """Class to represent the .yaml configuration file
@@ -195,9 +196,9 @@ class LambdaConfig():
 
         if "vpc" in self.config:
             if isinstance(self.config["vpc"], dict):
-                self.vpc = AWSVPCConfig(self.config["vpc"])
+                self.vpc = AWSVPCConfig(self.config["vpc"], profile=self.config.get("profile"))
             else:
-                self.vpc = AWSVPCConfig({})
+                self.vpc = AWSVPCConfig({}, profile=self.config.get("profile"))
             self.vpc.validate()
             validated_config["vpc"] = self.vpc.config
 
@@ -205,9 +206,13 @@ class LambdaConfig():
             if "custom_role" in validated_config:
                 del validated_config["custom_role"]
 
-            self.role = AWSLambdaRole(validated_config["name"],
-                                      vpc_enabled=("vpc" in self.config),
-                                      role=self.config.get("role"))
+            self.role = AWSLambdaRole(
+                validated_config["name"],
+                vpc_enabled=("vpc" in self.config),
+                role=self.config.get("role"),
+                profile=self.config.get("profile")
+                )
+
             validated_config["role"] = self.role.role
             validated_config["role_arn"] = self.role.role_arn
 
@@ -244,7 +249,11 @@ class LambdaConfig():
             with open(filename, "w") as f: # pylint: disable=C0103
                 f.write(str(self.role))
 
-    def generate_stub(self):
+    def generate_stub(self, pattern=None):
+        if pattern:
+            service = pattern["service"]
+        else:
+            service =""
 
         stub = {
             "handler" : "handler",
@@ -254,7 +263,9 @@ class LambdaConfig():
             "memory"  : self.makala_config.memory,
             "timeout" : self.makala_config.timeout,
             "runtime" : self.makala_config.runtime,
-            "service" : "",
+            "service" : service,
+            "source_account" : aws.get_caller_account(),
+            "source_arn": "",
             "region"  : self.makala_config.region,
             "logs"    : {"retention": self.makala_config.log_retention, "level" : "info"}
             }

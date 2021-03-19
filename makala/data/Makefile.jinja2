@@ -4,7 +4,9 @@
 
 LAMBDA_NAME = {{ name }}
 
+{% if profile is defined and profile != ""  %}
 AWS_PROFILE = {{ profile }}
+{% endif %}
 
 RUNTIME = {{ runtime }}
 
@@ -32,9 +34,13 @@ CUSTOM_ROLE = {{ custom_role }}
 
 CACHE_DIR = {{ cache_dir }}
 
+{% if source_arn is defined %}
 SOURCE_ARN = {{ source_arn }}
+{% endif %}
 
+{% if source_account is defined %}
 SOURCE_ACCOUNT = {{ source_account }}
+{% endif %}
 
 ACCOUNT = {{ account }}
 
@@ -93,7 +99,8 @@ LAMBDA_PERMISSION = \
 all: $(ZIPFILE) $(LAMBDA_ARN) $(LAMBDA_PERMISSION) $(LAMBDA_CONFIGURATION) Makefile
 
 $(CUSTOM_ROLE_ARN): $(LAMBDA_CONFIG)
-	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	if test -n "$(CUSTOM_ROLE)"; then \
 	  ROLE=$$(aws iam get-role --role-name $(CUSTOM_ROLE) 2>/dev/null); \
 	  if test -n "$$ROLE"; then \
@@ -108,28 +115,30 @@ $(CUSTOM_ROLE_ARN): $(LAMBDA_CONFIG)
 	test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
 
 $(ROLE_ARN): $(LAMBDA_CONFIG)
-	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	if test -n "$(LAMBDA_ROLE)"; then \
-	  aws iam get-role --role-name $(LAMBDA_ROLE) 2>/dev/null > $@; \
-	  if ! test -s $@; then \
+	  ROLE=$$(aws iam get-role --role-name $(LAMBDA_ROLE) 2>/dev/null); \
+	  if test -z "$$ROLE"; then \
 	    makala -o $(LAMBDA_NAME); \
 	    sleep 10; \
 	  else \
-	    cat $@ | jq -r .Role.Arn > $@; \
+	    echo $$ROLE | jq -r .Role.Arn > $@; \
 	  fi; \
 	else \
 	  test -e $@ || touch $@; \
 	fi
-	test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
+	set -x; test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
 
 # initial creation of the Lambda
 $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
-
-	@if ! test -d cache; then \
+	test -n "$$DEBUG" && set -x; \
+	if ! test -d cache; then \
 	  mkdir $(CACHE_DIR); \
 	fi
 
-	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	if test -e $(LAMBDA_ENV); then \
 	  ENVIRONMENT='--environment file://./'$(LAMBDA_ENV); \
 	fi; \
@@ -166,6 +175,7 @@ requirements.txt:
 $(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES) requirements.txt
 
 	# zip/update dependencies
+	test -n "$$DEBUG" && set -x; \
 	@PERL=$$(which perl); \
 	PIP=$$(which pip3); \
 	currdir=$$(pwd); \
@@ -173,6 +183,7 @@ $(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES) requirements.txt
 	  if test -d $$a && ! test -L $$a; then \
 	    cd $$currdir; \
 	    cd $$a/$(RUNTIME)/site-packages; \
+	    find . -exec touch -t 200010101010 {} + || true; \
 	    for f in $$(cat $$currdir/requirements.txt | $$PERL -npe 's/^(.*?)==.*$$/$$1/;'); do \
 	      $$PIP show -f $$f | grep "^ " | $$PERL -npe 's/^\s+//' | $(ZIP)  -@ $$currdir/$@ || true; \
 	    done; \
@@ -180,31 +191,39 @@ $(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES) requirements.txt
 	done
 
 	# zip/update up local modules
-	@if test -n "$(MODULES)"; then \
+	test -n "$$DEBUG" && set -x; \
+	if test -n "$(MODULES)"; then \
 	  for f in $(MODULES); do \
+	    find $f -exec touch -t 200010101010 {} + || true; \
 	    zip -r9 -u $@ $$f || true; \
 	  done; \
 	fi
 
 	# packages
-	@if test -n "$(PACKAGE_FILES)"; then \
+	test -n "$$DEBUG" && set -x; \
+	if test -n "$(PACKAGE_FILES)"; then \
 	  for p in $(PACKAGE_FILES); do \
+	    find $p -exec touch -t 200010101010 {} + || true; \
 	    zip -r9 -u $@ $$p || true; \
 	  done; \
 	fi
 
 	# zip/update lambda
+	touch -t 200010101010 $<
 	zip -u -g $@ $< || true
 
 # anytime the lambda configuration changes we need to regenerate the
 # Makefile...
 Makefile: $(LAMBDA_CONFIG)
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	makala -o $(LAMBDA_NAME)
 	$(MAKE) $(MFLAGS)
 
 # update configuration if {{ name }}.yaml changes
 $(LAMBDA_CONFIGURATION):: $(LAMBDA_CONFIG) $(LAMBDA_ROLE_ARN)
-	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	if test -e $(LAMBDA_ARN); then \
 	  if test -e $(LAMBDA_ENV); then \
 	    ENVIRONMENT='--environment file://./'$(LAMBDA_ENV); \
@@ -227,21 +246,24 @@ $(LAMBDA_CONFIGURATION):: $(LAMBDA_CONFIG) $(LAMBDA_ROLE_ARN)
 	fi
 
 $(LAMBDA_CONFIGURATION):: $(ZIPFILE)
-	# if Lambda or any module is updated
-	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	if test -e "$(LAMBDA_ARN)"; then \
 	  aws lambda update-function-code \
 	    --zip-file fileb://$(ZIPFILE) --function $(LAMBDA_HANDLER) > $@; cat $@; \
 	fi
 
 $(LAMBDA_LOG_GROUP):
-	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	aws logs create-log-group --log-group-name $(LAMBDA_LOG_GROUP_NAME) >$@; \
 	aws logs put-retention-policy --log-group-name $(LAMBDA_LOG_GROUP_NAME) \
 	  --retention-in-days $(LOG_RETENTION)
 
 $(LAMBDA_PERMISSION): $(LAMBDA_ARN) $(LAMBDA_CONFIG)
-	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	if test -e "$@"; then \
 	  OLD_SERVICE=$$(cat $@ | jq -r .Principal.Service); \
           OLD_SID=$$(cat $@ | jq -r .Sid); \
@@ -278,7 +300,8 @@ $(LAMBDA_PERMISSION): $(LAMBDA_ARN) $(LAMBDA_CONFIG)
 	touch $@
 
 check: $(ZIPFILE) $(LAMBDA_ARN)
-	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	aws lambda get-function-configuration --function-name $(LAMBDA_NAME) > $(LAMBDA_ARN); \
 	STATE=$$(cat $(LAMBDA_ARN) | jq -r .State); \
 	if [ "$$STATE" = "null" ]; then \
@@ -300,17 +323,28 @@ apply:
 	cd terraform; \
 	make apply
 
-.PHONY: clean plan apply
+test.out: $(LAMBDA_CONFIGURATION
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	PAYLOAD="test-$(LAMBDA_HANDLER).json"; \
+	if test -e "$$PAYLOAD"; then \
+	  aws lambda invoke --function-name $(LAMBDA_HANDLER) --payload file://$$PAYLOAD \
+	    --cli-binary-format raw-in-base64-out 
+
+test: test.out
+
+.PHONY: clean plan apply test
 
 clean:
 	rm -f $(CLEANFILES)
 
 uninstall: clean
-	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	aws lambda delete-function --function $(LAMBDA_HANDLER) 2>/dev/null || true; \
 	aws logs delete-log-group --log-group-name $(LAMBDA_LOG_GROUP_NAME) 2>/dev/null || true
 
-	@test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	if test -z "$(CUSTOM_ROLE)"; then \
 	  if $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) >/dev/null 2>&1); then \
 	    for a in $$(aws iam list-attached-role-policies --role-name $(LAMBDA_ROLE) | jq -r '.AttachedPolicies|.[]|[.PolicyArn]|.[]'); do \
@@ -319,6 +353,8 @@ uninstall: clean
 	  fi; \
 	  aws iam delete-role --role-name $(LAMBDA_ROLE) 2>/dev/null || true; \
 	fi
+
+	test -n "$$DEBUG" && set -x; \
 	rm -f $(LAMBDA_LOG_GROUP) \
 	  $(LAMBDA_PERMISSION) \
 	  $(LAMBDA_ROLE_ARN) \

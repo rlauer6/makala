@@ -71,9 +71,37 @@ def main():
     parser.add_argument('-t', '--terraform', dest="terraform",
                         action="store_true", help="generate terraform instead of Makefile")
 
+    parser.add_argument('-s', '--service', dest="service",
+                        action="store", help="generate a configuration file for a specific service")
 
     args = parser.parse_args()
+
     lambda_name = args.lambda_name
+    split_name = os.path.splitext(lambda_name)
+    if split_name[1]:
+        logger.warn("using {} as Lambda name".format(split_name[0]))
+        lambda_name = split_name[0]
+
+    services_supported = {
+        "events" : { "service": "events.amazonaws.com" },
+        "sns"    : { "service": "sns.amazonaws.com" },
+        "s3"     : { "service": "s3.amazonaws.com" },
+        "sqs"    : { "service": "sqs.amazonaws.com" }
+        }
+
+    if args.service and not args.generate:
+        logger.error("--service only valid with --generate option");
+        sys.exit(-1)
+    elif args.service:
+        if args.service in services_supported.keys():
+            service_pattern = args.service
+        else:
+            logger.error("{} is not a supported service")
+            print("Supported services:")
+            print(" * {}".format("\n * ".join(services_supported.keys())))
+            sys.exit(-1)
+    else:
+        service_pattern = None
 
     if args.generate:
         config_name = "{}.yaml".format(lambda_name)
@@ -83,7 +111,7 @@ def main():
 
         lambda_config = LambdaConfig(lambda_name=lambda_name, makala_config=makala_config)
         with open(config_name, "w") as f:
-            f.write(lambda_config.generate_stub())
+            f.write(lambda_config.generate_stub(pattern=services_supported.get(service_pattern)))
 
         stub_name = "{}.py".format(lambda_name)
         if os.path.exists(stub_name) and not args.overwrite:
@@ -122,11 +150,12 @@ def main():
 
     if os.path.exists("Makefile.jinja2"):
         template_name = "Makefile.jinja2"
-        tempdate_dir = os.getcwd()
-        logger.info("using local Makefile template")
+        template_dir = os.getcwd()
+        logger.warn("using local Makefile template")
     else:
         template_name = pkg_resources.resource_filename("makala", 'data/Makefile.jinja2')
         template_dir = "/"
+        shutil.copyfile(pkg_resources.resource_filename("makala", "data/Makefile.jinja2"), "Makefile.jinja2")
 
     # setup a few variables needed for jinja template
     validated_config = lambda_config.config
@@ -143,23 +172,25 @@ def main():
 
     target = "Makefile" # default target
 
-    # at least need source_account?...for S3?...maybe warning if no source_arn?
-    if "source_arn" not in validated_config and "source_account" not in validated_config:
-        validated_config["source_account"] = aws.get_caller_account()
+    # at least need source_account?...for S3/SES?...maybe warning if no source_arn?
+    if not ("source_account" in validated_config and not validated_config.get("source_account")):
+        if not (validated_config.get("source_arn") or validated_config.get("source_account")):
+            validated_config["source_account"] = aws.get_caller_account()
+    else:
+        del validated_config["source_account"]
 
     # source_account present in .yaml, but no value (use default)
     service = validated_config.get("service")
     account = aws.get_caller_account()
+
     if "s3" in service:
         if "source_account" in validated_config and not validated_config["source_account"]:
             logger.warn("no source_account defined...adding default account {}".format(account))
             validated_config["source_account"] = account
-    else:
-        validated_config["source_account"] = ""
 
     validated_config["account"] = account
 
-    if not validated_config["source_arn"]:
+    if not validated_config.get("source_arn"):
         logger.warn("no source_arn defined")
 
     if not args.terraform:

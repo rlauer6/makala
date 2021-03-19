@@ -26,6 +26,14 @@ class AWSLambdaRole():
         self._logger = logger
 
     @property
+    def profile(self):
+        return self._profile
+
+    @profile.setter
+    def profile(self, profile):
+        self._profile = profile
+
+    @property
     def role_arn(self):
         return self._role_arn
 
@@ -76,6 +84,7 @@ class AWSLambdaRole():
 
         self.lambda_name = lambda_name
         self.role = kwargs.get("role")
+        self.profile = kwargs.get("profile")
 
         self.auto_create_role = kwargs.get("auto_create_role")
         self.vpc_enabled = kwargs.get("vpc_enabled") or False
@@ -85,14 +94,14 @@ class AWSLambdaRole():
     def validate(self):
         role_arn = None
         if not self.role_arn and self.role:
-            role_arn = aws.validate_role(self.role)
+            role_arn = aws.validate_role(self.role, profile=self.profile)
             if not role_arn:
                 self.logger.info("creating lambda role: {}".format(self.role))
-                role_arn = aws.create_lambda_role(role_name=self.role, vpc=self.vpc_enabled)
+                role_arn = aws.create_lambda_role(role_name=self.role, vpc=self.vpc_enabled, profile=self.profile)
 
         elif not self.role_arn and self.auto_create_role:
             self.logger.info("creating lambda_role: {}".format(self.role))
-            role_arn = aws.create_lambda_role(role_name=self.role, vpc=self.vpc_enabled)
+            role_arn = aws.create_lambda_role(role_name=self.role, vpc=self.vpc_enabled, profile=self.profile)
 
         return role_arn
 
@@ -101,12 +110,12 @@ class AWSLambdaRole():
 
     def delete(self):
         if self.role_arn and self.role:
-            policies = aws.list_role_policies(self.role)
+            policies = aws.list_role_policies(self.role, profile=self.profile)
             for a in policies:
-                self.logger.inf("detaching policy: {} from: {}".format(a, self.role))
-                aws.detach_role_policy(self.role, a)
-        self.logger.inf("deleting role: {}".format(self.role))
-        aws.delete_role(self.role)
+                self.logger.info("detaching policy: {} from: {}".format(a, self.role))
+                aws.detach_role_policy(self.role, a, profile=self.profile)
+        self.logger.info("deleting role: {}".format(self.role))
+        aws.delete_role(self.role, profile=self.profile)
         self.role_arn = None
 
 if __name__ == "__main__":

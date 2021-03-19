@@ -21,6 +21,14 @@ class AWSVPCConfig():
         self._logger = logger
 
     @property
+    def profile(self):
+        return self._profile
+
+    @profile.setter
+    def profile(self, profile):
+        self._profile = profile
+
+    @property
     def subnet_ids(self):
         return self._subnet_ids
 
@@ -70,7 +78,7 @@ class AWSVPCConfig():
     def config(self, config):
         self._config = config
 
-    def __init__(self, config):
+    def __init__(self, config, profile=None):
         if not isinstance(config, dict):
             raise Exception("config must be dict")
 
@@ -80,18 +88,19 @@ class AWSVPCConfig():
         self.security_group_ids = config.get("security_group_ids")
         self.security_group_name = config.get("security_group_name")
         self.logger = logging.getLogger()
+        self.profile = profile
 
     def validate(self):
         """Validate the vpc object in the configuration.
         """
         if self.vpc_id and self.vpc_id == "default":
-            self.vpc_id = aws.get_default_vpc()["VpcId"]
+            self.vpc_id = aws.get_default_vpc(profile=self.profile)["VpcId"]
             self.logger.info("using default vpc: {}".format(self.vpc_id))
-            self.subnet_ids = aws.get_private_subnet_ids(self.vpc_id)
-            self.security_group_ids = aws.get_default_security_group(self.vpc_id)["GroupId"]
+            self.subnet_ids = aws.get_private_subnet_ids(self.vpc_id, profile=self.profile)
+            self.security_group_ids = aws.get_default_security_group(self.vpc_id, profile=self.profile)["GroupId"]
         elif self.vpc_id:
             if self.security_group_name:
-                sg = aws.get_security_group_by_name(self.vpc_id, self.security_group_name)
+                sg = aws.get_security_group_by_name(self.vpc_id, self.security_group_name, profile=self.profile)
                 if sg:
                     if len(self.security_group_ids):
                         if not sg["GroupId"] in self.security_group_ids:
@@ -100,11 +109,11 @@ class AWSVPCConfig():
                         self.security_group_ids = sg["GroupId"]
             elif len(self.security_group_ids) == 0:
                 self.logger.info("using default security group for vpc: {}".format(self.vpc_id))
-                self.security_group_ids = aws.get_default_security_group(self.vpc_id)["GroupId"]
+                self.security_group_ids = aws.get_default_security_group(self.vpc_id, profile=self.profile)["GroupId"]
 
             if len(self.subnet_ids) == 0:
                 self.logger.info("using default private subnets for vpc: {}".format(self.vpc_id))
-                self.subnet_ids = aws.get_private_subnet_ids(self.vpc_id)
+                self.subnet_ids = aws.get_private_subnet_ids(self.vpc_id, profile=self.profile)
         else:
             self.vpc_id = "default"
             self.validate()

@@ -12,42 +12,71 @@ def main():
     create_lambda_role(role_name=role_name, vpc=True)
     print(role_name)
 
-def lambda_add_permission(function_name, action, **kwargs):
-    lambda_client = boto3.client('lambda')
+def get_iam_client(profile):
+    if profile:
+        session = boto3.Session(profile_name=profile)
+        iam = session.client('iam')
+    else:
+        iam = boto3.client('iam')
 
-    account = kwargs.get("account") or get_caller_account()
+    return iam
+
+def get_ec2_client(profile):
+    if profile:
+        session = boto3.Session(profile_name=profile)
+        ec2 = session.client('ec2')
+    else:
+        ec2 = boto3.client('ec2')
+
+    return ec2
+
+def get_sts_client(profile):
+    if profile:
+        session = boto3.Session(profile_name=profile)
+        sts = session.client('sts')
+    else:
+        sts = boto3.client('sts')
+
+    return sts
+
+def lambda_add_permission(function_name, action, **kwargs):
+    profile = kwargs.get("profile")
+    lambda_client = get_lambda_client(profile)
+
+    account = kwargs.get("account") or get_caller_account(profile=profile)
     args = {"FunctionName": function_name, "Action": action, "SourceAccount" : account}
     if kwargs.get("source_arn"):
         args["SourceArn"] = kwargs["source_arn"]
 
     lambda_client.add_permission(**args)
 
-def get_caller_identity():
-    sts = boto3.client('sts')
+def get_caller_identity(profile=None):
+    sts = get_sts_client(profile)
     response = sts.get_caller_identity()
     return response
 
-def get_caller_account():
-    identity = get_caller_identity()
+def get_caller_account(profile=None):
+    identity = get_caller_identity(profile=profile)
     return identity["Account"]
 
-def list_role_policies(role_name):
-    iam = boto3.client('iam')
+def list_role_policies(role_name, profile=None):
+    iam = get_iam_client(profile)
     response = iam.list_attached_role_policies(RoleName=role_name)
     return [ p["PolicyArn"] for p in response["AttachedPolicies"]]
 
-def detach_role_policy(role_name, policy_arn):
-    iam = boto3.client('iam')
+def detach_role_policy(role_name, policy_arn, profile=None):
+    iam = get_iam_client(profile)
     iam.detach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
 
-def delete_role(role_name):
-    iam = boto3.client('iam')
+def delete_role(role_name, profile=None):
+    iam = get_iam_client(profile)
     iam.delete_role(RoleName=role_name)
 
-def validate_role(role_name):
+def validate_role(role_name, profile=None):
     """validates a role
     """
-    iam = boto3.client('iam')
+    iam = get_iam_client(profile)
+
     try:
         role = iam.get_role(RoleName=role_name)
         if "Role" in role and "Arn" in role["Role"]:
@@ -57,22 +86,23 @@ def validate_role(role_name):
 
     return arn
 
-
 def create_lambda_role(**kwargs):
     """Create a basic Lambda execution role and attach policies
     """
     role_name = kwargs["role_name"]
     vpc = kwargs["vpc"]
     role_arn = validate_role(role_name)
+    profile = kwargs.get("profile")
+
     if not role_arn:
-        role_arn = create_lambda_execution_role(role_name, vpc=vpc)
+        role_arn = create_lambda_execution_role(role_name, vpc=vpc, profile=profile)
 
     return role_arn
 
-def get_subnet_ids(vpc_id):
+def get_subnet_ids(vpc_id, profile=None):
     """Get the subnet ids for the given VPC
     """
-    ec2 = boto3.client('ec2')
+    ec2 = get_ec2_client(profile)
     subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
     subnet_ids = None
     if subnets:
@@ -81,11 +111,11 @@ def get_subnet_ids(vpc_id):
     return subnet_ids
 
 
-def get_default_security_group(vpc_id):
+def get_default_security_group(vpc_id, profile=None):
     """Get the default security group for the given VPC
     """
 
-    ec2 = boto3.client('ec2')
+    ec2 = get_ec2_client(profile)
     default_sg = None
 
     security_groups = ec2.describe_security_groups(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
@@ -96,11 +126,11 @@ def get_default_security_group(vpc_id):
 
     return default_sg
 
-def get_security_group_by_name(vpc_id, name):
+def get_security_group_by_name(vpc_id, name, profile=None):
     """Get the security group with the given name
     """
 
-    ec2 = boto3.client('ec2')
+    ec2 = get_ec2_client(profile)
 
     security_groups = ec2.describe_security_groups(Filters=[{ "Name":"vpc-id", "Values": [vpc_id]}])
     if security_groups:
@@ -113,10 +143,11 @@ def get_security_group_by_name(vpc_id, name):
 
     return None
 
-def get_default_vpc():
+def get_default_vpc(profile=None):
     """Get the default VPC configuration.
     """
-    ec2 = boto3.client('ec2')
+    ec2 = get_ec2_client(profile)
+
     vpcs = ec2.describe_vpcs()
     default_vpc = {}
     if vpcs:
@@ -129,7 +160,7 @@ def create_lambda_execution_role(role_name, **kwargs):
     """Create a basic execution role for the Lambda
     """
     role_arn = None
-    iam = boto3.client('iam')
+    iam = get_iam_client(kwargs.get("profile"))
 
     policy_arns = []
     if kwargs["vpc"]:
@@ -155,8 +186,8 @@ def create_lambda_execution_role(role_name, **kwargs):
 
     return role_arn
 
-def get_private_subnet_ids(vpc_id):
-    ec2 = boto3.client('ec2')
+def get_private_subnet_ids(vpc_id, profile=None):
+    ec2 = get_ec2_client(profile)
     response = ec2.describe_route_tables(Filters = [{ "Name": "vpc-id", "Values": [ vpc_id ] }])
     route_tables = response["RouteTables"]
 
