@@ -4,6 +4,8 @@
 
 LAMBDA_NAME = {{ name }}
 
+BUCKET = {{ bucket }}
+
 {% if profile is defined and profile != ""  %}
 AWS_PROFILE = {{ profile }}
 {% endif %}
@@ -43,6 +45,18 @@ SOURCE_ACCOUNT = {{ source_account }}
 {% endif %}
 
 ACCOUNT = {{ account }}
+
+{% if sns_topic is defined %}
+SNS_TOPIC_NAME = {{ sns_topic }}
+SNS_SUBSCRIPTION = $(CACHE_DIR)/$(SNS_TOPIC_NAME)-subscription.arn
+SNS_TOPIC = $(CACHE_DIR)/$(SNS_TOPIC_NAME)-topic.arn
+{% endif %}
+
+{% if bucket is defined %}
+BUCKET_ARN = $(CACHE_DIR)/$(BUCKET)-bucket.arn
+BUCKET_NOTIFICATION = $(CACHE_DIR)/$(BUCKET)-bucket-notification.json.in
+GBUCKET_NOTIFICATION = $(BUCKET_NOTIFICATION:.json.in=.json)
+{% endif %}
 
 # ------------------------------------------------
 
@@ -168,11 +182,17 @@ $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
 
 zip: $(ZIPFILE)
 
+
 requirements.txt:
 	PIP=$$(which pip3); \
 	$$PIP freeze > $@
 
-$(ZIPFILE): $(LAMBDA) $(GLAMBDA) $(GMODULES) $(GPACKAGE_FILES) requirements.txt
+$(ZIPFILE): \
+    $(LAMBDA) {% if sns_topic is defined %} $(SNS_TOPIC) $(SNS_SUBSCRIPTION) {% endif %} \
+    $(GLAMBDA) \
+    $(GMODULES) \
+    $(GPACKAGE_FILES) \
+    requirements.txt
 
 	# zip/update dependencies
 	test -n "$$DEBUG" && set -x; \
@@ -245,7 +265,8 @@ $(LAMBDA_CONFIGURATION):: $(LAMBDA_CONFIG) $(LAMBDA_ROLE_ARN)
 	  fi; \
 	fi
 
-$(LAMBDA_CONFIGURATION):: $(ZIPFILE)
+$(LAMBDA_CONFIGURATION):: \
+  $(ZIPFILE) {% if bucket is defined %}$(GBUCKET_NOTIFICATION){% endif %}
 	test -n "$$DEBUG" && set -x; \
 	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	if test -e "$(LAMBDA_ARN)"; then \
@@ -259,6 +280,28 @@ $(LAMBDA_LOG_GROUP):
 	aws logs create-log-group --log-group-name $(LAMBDA_LOG_GROUP_NAME) >$@; \
 	aws logs put-retention-policy --log-group-name $(LAMBDA_LOG_GROUP_NAME) \
 	  --retention-in-days $(LOG_RETENTION)
+
+{% if sns_topic is defined %} 
+$(SNS_TOPIC): $(LAMBDA_CONFIG)
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	SNS_TOPIC_ARN=$(aws sns list-topics | jq -r '.Topics|map(select(.TopicArn | match("'$(SNS_TOPIC_NAME)'")))[]|.TopicArn'); \
+	if test -n "$$SNS_TOPIC_ARN"; then \
+	  echo $$SNS_TOPIC_ARN > $@; \
+	else \
+	  aws sns create-topic --name $(SNS_TOPIC_NAME) | jq -r .TopicArn >$@; \
+	fi
+
+$(SNS_SUBSCRIPTION): $(LAMBDA_ARN) $(SNS_TOPIC)
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	SUBSCRIPTION_ARN=$$(aws sns list-subscriptions | jq -r '.Subscriptions|map(select(.TopicArn | match("'$(SNS_TOPIC)'")))|map(select(.Protocol | match("lambda")))[]|.SubscriptionArn'); \
+	if test -z $(SUBSCRIPTION_ARN); then \
+	  ENDPOINT_ARN=$$(cat $(LAMBDA_ARN)); \
+	  TOPIC_ARN=$$(cat $(SNS_TOPIC)); \
+	  aws sns subscribe --protocol lambda --notification-endpoint $$ENDPOINT_ARN --topic-arn $$TOPIC_ARN | jq -r .SubscriptionArn > $@; \
+	fi
+{% endif %}
 
 $(LAMBDA_PERMISSION): $(LAMBDA_ARN) $(LAMBDA_CONFIG)
 
@@ -299,6 +342,26 @@ $(LAMBDA_PERMISSION): $(LAMBDA_ARN) $(LAMBDA_CONFIG)
 
 	touch $@
 
+{% if bucket is defined %}
+$(BUCKET_ARN):
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	if aws s3 mb s3://$(BUCKET); then \
+	  echo "arn:aws:s3:::$(BUCKET)" > $@; \
+	fi
+
+$(BUCKET_NOTIFICATION): $(LAMBDA_ARN) $(BUCKET_ARN)
+	makala -n $(LAMBDA_NAME)
+
+$(GBUCKET_NOTIFICATION): $(BUCKET_NOTIFICATION)
+	test -n "$$DEBUG" && set -x; \
+	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
+	if aws s3api put-bucket-notification-configuration --bucket $(BUCKET) \
+	  --notification-configuration file://$<; then \
+	  aws s3api get-bucket-notification-configuration --bucket $(BUCKET) > $@; \
+	fi
+{% endif %}
+
 check: $(ZIPFILE) $(LAMBDA_ARN)
 	test -n "$$DEBUG" && set -x; \
 	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
@@ -323,7 +386,7 @@ apply:
 	cd terraform; \
 	make apply
 
-test.out: $(LAMBDA_CONFIGURATION
+test.out: $(LAMBDA_CONFIGURATION)
 	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	PAYLOAD="test-$(LAMBDA_HANDLER).json"; \
 	if test -e "$$PAYLOAD"; then \

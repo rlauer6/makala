@@ -1,3 +1,69 @@
+Fri Jul 16 09:06:15 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	[S3 notification]:
+	* VERSION: bump 1.8
+	* README.md
+	* makala/aws/utils.py
+	(get_s3_client): new
+	(get_client): new
+	(get_iam_client): use get_client
+	(get_sns_client): likewise
+	(get_ec2_client): likewise
+	(get_sns_client): likewise
+	(get_sts_client): likewise
+	* makala/data/Makefile.jinja2
+	- create bucket and bucket notification
+	(BUCKET_ARN): new
+	(BUCKET_NOTIFCATION): new
+	(GBUCKET_NOTIFICATION): new
+	(LAMBDA_CONFIGURATION)
+	- new dependency: GBUCKET_NOTIFICATION if service is S3
+	* makala/lambda_config.py
+	(LambdaConfig)
+	(bucket): new
+	(__init__): initialize bucket
+	(validate): set bucket to validated_config if exists
+	(generate_stub)
+	- set source_arn if exists
+	- set bucket if exists
+	* makala/makala.py
+	- --generate-bucket-notification
+	- --bucket-filter
+	- --bucket-events
+	- --bucket
+	- new service (logs)
+	(get_lambda_config_file): new
+
+Fri Jul  9 09:09:16 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	[SNS support]:
+	* README.md
+	* makala/aws/utils.py
+	(get_sns_client): new
+	(validate_sns_topic): new
+	* makala/data/Makefile.jinja2
+	(ZIPFILE): added SNS topic dependency if service = SNS
+	(SNS_TOPIC): new
+	(SNS_SUBSCRIPTION): new
+	(test.out): missing paren
+	* makala/data/terraform-provider.jinja2
+	(aws_security_group.security_group): make conditional on VPC
+	* makala/data/terraform.jinja2
+	(security_group_id): make conditional on VPC
+	(aws_sns_topic): new
+	(aws_sns_topic_subscription): new
+	* makala/lambda_config.py
+	(LambdaConfig)
+	- added region() setter/getter
+	- added sns_topic() setter/getter
+	(validate)
+	- check for sns_topic if service is SNS
+	- if sns_topic defined, check to see it is valid, warn if no
+	- delete source_account if service is SNS
+	* makala/makala.py
+	- remove logic around adding source_account
+	- set template_dir to / if terraform
+
 Thu Mar 18 08:10:25 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	* README.md

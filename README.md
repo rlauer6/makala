@@ -2,15 +2,35 @@
 
 # Overview
 
-`makala` is a Python script to create a light weight Makefile based
+`makala` is a Python script to create a light-weight `Makefile` based
 serverless framework for AWS Python based Lambdas. It can also create the
 Terraform framework for your Lambda.
 
 # Why?
 
 Sometimes a `Makefile` is a good thing and besides I'm smitten with
-Makefiles. If you're not, then you can still `makala` to create some
+`Makefile`s. If you're not, then you can still `makala` to create some
 Terraform you can apply to create your serverless function.
+
+## Why should I use the `Makefile`?
+
+Use `make` does a few things _automagically_ for you:
+
+* Quick syntax check of your Python code (TBD: linting, unit testing)
+* Recognizes dependency changes to build new Lambda package (including
+  requirements)
+* Creates necessary IAM permission
+* Creates other AWS resources (SNS, TBD: buckets)
+* Rebuilds Lambda package (`make clean && make`)
+
+## Why should I use the Terraform option?
+
+If your requirements are more than basic and you are familiar with
+Terraform, this option gives you the most flexibility by creating the
+necessary Terraform resources that you can modify on your own.
+`makala` does not provide for every scenario or for every option for
+resources.  Using the Terraform option you can modify the resources
+for your use case.
 
 # Requirements
 
@@ -322,7 +342,9 @@ __NOTE__
 _A `make uninistall` will delete roles created by `makala` but not
 your externally managed role._
 
-## Service Permissions
+## Services
+
+### Permissions
 
 If you have specified a service in the configuration file
 (e.g. `service: sns.amazonaws.com`), then the `Makefile` will add the
@@ -330,6 +352,52 @@ appropriate permissions to allow the service to invoke your Lambda.
 
 _Note that if you change or remove the service entry the `Makefile`
 will remove or add the new permissions._
+
+### S3
+
+If your service is S3, presumably your Lambda is responding to a
+bucket event.  Therefore you will want to configure the bucket and
+bucket notifications.
+
+Set the bucket name, bucket events that will trigger your Lambda and
+if desired bucket filters.
+
+```
+bucket:
+  name: my-bucket
+  events:
+  - s3:ObjectCreated:Put
+  - s3:ObjectCreated:Post
+  - s3:ObjectCreated:CompleteMultipartUpload
+  filter:
+    name: prefix
+    value: foo
+```
+
+If the bucket does not exist the `Makefile` will create the
+bucket. The `Makefile` will also create the notification.
+
+### SNS Topic
+
+If your service is SNS, presumably your Lambda is responding to an SNS
+notification. Therefore, you probably want to subscribe to a topic.
+`makala` will automatically create an SNS topic for you if it does not
+exist and create the proper Lambda permissions so that SNS can invoke
+your Lambda.  Set `sns_topic` in your configuration file to the name
+of the topic you have created or want to create.
+
+```
+service: sns.amazonaws.com
+sns_topic: foo-topic
+```
+
+### Logs
+
+TBD
+
+### Simple E-Mail Service
+
+TBD
 
 ## VPC
 
@@ -423,7 +491,7 @@ this time. The function is currently in the following state:
 'Pending'_
 
 This is a known error that occurs when you try to update the function
-code or function configuratoin before the Lambda is available.  Try
+code or function configuration before the Lambda is available.  Try
 again later.
 
 _An error occurred (InvalidParameterValueException) when calling the
@@ -529,6 +597,29 @@ terraform init
 * _Note that other services like SNS will not work with a `source_account`
   and do not require either option._
 
+
+# RECIPES
+
+## I want to create a Lambda that is triggered by an S3 bucket event.
+
+```
+```
+
+## I want to create a Lambda that subscribes to an SNS topic.
+
+```
+```
+
+## I want to create a Lambda that is launched by a CloudWatch event.
+
+```
+```
+
+## I want to create a Lambda that is invoked by CloudWatch logs.
+
+```
+```
+
 # FAQ
 
 ## __Why is the script called "makala"?__
@@ -558,4 +649,3 @@ Terraform leads to a more maintainable and transparent infrastructure.
 # TBDs
 
 * [ ] option to create configuration from an existing lambda
-

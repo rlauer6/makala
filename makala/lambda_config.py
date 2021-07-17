@@ -10,7 +10,8 @@ import pkg_resources
 
 from .aws.vpc_config import AWSVPCConfig
 from .aws.lambda_role import AWSLambdaRole
-import  makala.aws.utils as aws
+
+import makala.aws.utils as aws
 
 class LambdaConfig():
     """Class to represent the .yaml configuration file
@@ -24,12 +25,36 @@ class LambdaConfig():
         self._env = env
 
     @property
+    def region(self):
+        return self._region
+
+    @region.setter
+    def region(self, region):
+        self._region = region
+
+    @property
+    def sns_topic(self):
+        return self._sns_topic
+
+    @sns_topic.setter
+    def sns_topic(self, sns_topic):
+        self._sns_topic = sns_topic
+
+    @property
     def vpc(self):
         return self._vpc
 
     @vpc.setter
     def vpc(self, vpc):
         self._vpc = vpc
+
+    @property
+    def bucket(self):
+        return self._bucket
+
+    @bucket.setter
+    def bucket(self, bucket):
+        self._bucket = bucket
 
     @property
     def source_arn(self):
@@ -107,7 +132,9 @@ class LambdaConfig():
         self.role = None
         self.env = None
         self.vpc = None
-
+        self.bucket = None
+        self.sns_topic = None
+        self.source_arn = None
         self.path = kwargs.get("path")
         self.lambda_name = kwargs["lambda_name"]
         self.makala_config = kwargs["makala_config"]
@@ -173,6 +200,8 @@ class LambdaConfig():
                     warnings.append("no required {} defined. Using default: {}".format(var, required_vars[var]))
                     validated_config[var] = required_vars[var]
 
+        self.region = validated_config["region"]
+
         memory = int(validated_config["memory"])
         if memory > 3008 or memory < 128 or memory % 64:
             errors.append("invalid value ({}) for memory. Must be 128 MB to 3,008 MB, in 64 MB increments.".format(memory))
@@ -218,6 +247,31 @@ class LambdaConfig():
 
         if "profile" in self.config:
             validated_config["profile"] = self.config.get("profile")
+
+        if validated_config["service"] and "sns" in  validated_config["service"]:
+            if not validated_config.get("sns_topic"):
+                errors.append("no sns topic defined")
+
+
+        # if the Lambda is going to subscribe to a topic...
+        # 1. check to see if topic exists
+        # 2. add source_arn to config (if the topic does not exist the Makefile will create it)
+        # 3. remove source_account from config
+
+        if "sns_topic" in validated_config:
+            topic = aws.validate_sns_topic(validated_config["sns_topic"], profile=self.config.get("profile"))
+            if topic:
+                self.sns_topic = validated_config["sns_topic"]
+            else:
+                warnings.append("no such topic: {}".format(validated_config["sns_topic"]))
+
+            if "source_account" in validated_config:
+                del validated_config["source_account"]
+
+            validated_config["source_arn"] = "arn:aws:sns:{}:{}:{}".format(self.region, aws.get_caller_account(), validated_config["sns_topic"])
+
+        if self.bucket:
+            validated_config["bucket"] = self.bucket
 
         if len(errors) == 0:
             self.config = validated_config
@@ -265,10 +319,15 @@ class LambdaConfig():
             "runtime" : self.makala_config.runtime,
             "service" : service,
             "source_account" : aws.get_caller_account(),
-            "source_arn": "",
             "region"  : self.makala_config.region,
             "logs"    : {"retention": self.makala_config.log_retention, "level" : "info"}
             }
+
+        if self.source_arn:
+            stub["source_arn"] = self.source_arn
+
+        if self.bucket:
+            stub["bucket"] = self.bucket
 
         return yaml.dump(stub)
 

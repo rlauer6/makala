@@ -1,9 +1,11 @@
 # {{ timestamp }}
 # makala {{ version }}
 
+{% if vpc.subnet_ids|length != 0 %}
 locals {
   security_group_id = data.aws_security_group.security_group.id
 }
+{% endif %}
 
 resource "aws_lambda_function" "{{ name }}" {
   filename         = "{{ name }}.zip"
@@ -96,3 +98,17 @@ resource "aws_cloudwatch_event_target" "event_target" {
 }
   
 {% endif %}
+
+{%if service == "sns.amazonaws.com" %}
+resource "aws_sns_topic" "{{name}}_sns_topic" {
+  name = "{{ sns_topic }}"
+}
+
+resource "aws_sns_topic_subscription" "{{ name }}_sns_topic_subscription" {
+  topic_arn = aws_sns_topic.{{ name }}_sns_topic.arn
+  protocol = "lambda"
+  endpoint = aws_lambda_function.{{ name }}.arn
+}
+
+{% endif %}
+    

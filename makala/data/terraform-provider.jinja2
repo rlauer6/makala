@@ -31,6 +31,8 @@ variable "env" {
   default = "{{ profile }}"
 }
 
+{% if vpc.subnet_ids|length != 0 %}
+
 variable "security_group_name" {
   default = "{{ security_group_name }}"
 }
@@ -38,3 +40,5 @@ variable "security_group_name" {
 data "aws_security_group" "security_group" {
   name = "{{ security_group_name }}"
 }
+
+{% endif %}

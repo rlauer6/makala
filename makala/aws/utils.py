@@ -12,32 +12,38 @@ def main():
     create_lambda_role(role_name=role_name, vpc=True)
     print(role_name)
 
-def get_iam_client(profile):
+def validate_bucket(bucket, profile=None):
+    s3 = get_s3_client(profile)
+    try:
+        s3.head_bucket(Bucket=bucket)
+    except:
+        return None
+
+    return bucket
+
+def get_client(profile, service):
     if profile:
         session = boto3.Session(profile_name=profile)
-        iam = session.client('iam')
+        client = session.client(service)
     else:
-        iam = boto3.client('iam')
+        client = boto3.client(service)
 
-    return iam
+    return client
+
+def get_s3_client(profile):
+    return get_client(profile, 's3')
+
+def get_iam_client(profile):
+    return get_client(profile, 'iam')
 
 def get_ec2_client(profile):
-    if profile:
-        session = boto3.Session(profile_name=profile)
-        ec2 = session.client('ec2')
-    else:
-        ec2 = boto3.client('ec2')
+    return get_client(profile, 'ec2')
 
-    return ec2
+def get_sns_client(profile):
+    return get_client(profile, 'sns')
 
 def get_sts_client(profile):
-    if profile:
-        session = boto3.Session(profile_name=profile)
-        sts = session.client('sts')
-    else:
-        sts = boto3.client('sts')
-
-    return sts
+    return get_client(profile, 'sts')
 
 def lambda_add_permission(function_name, action, **kwargs):
     profile = kwargs.get("profile")
@@ -71,6 +77,24 @@ def detach_role_policy(role_name, policy_arn, profile=None):
 def delete_role(role_name, profile=None):
     iam = get_iam_client(profile)
     iam.delete_role(RoleName=role_name)
+
+def validate_sns_topic(topic_name, profile=None):
+    sns = get_sns_client(profile)
+    next_token = ""
+    topics = []
+
+    while next_token != None:
+        results = sns.list_topics(NextToken=next_token)
+        for topic in results["Topics"]:
+            topics.append(topic["TopicArn"])
+
+        next_token = results.get("NextToken")
+
+    for topic in topics:
+        if topic_name in topic:
+            return { topic_name : topic }
+
+    return None
 
 def validate_role(role_name, profile=None):
     """validates a role
