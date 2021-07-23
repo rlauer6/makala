@@ -144,7 +144,12 @@ $(ROLE_ARN): $(LAMBDA_CONFIG)
 	fi
 	set -x; test -e $(LAMBDA_ARN) && touch $(LAMBDA_ARN) || true
 
-# initial creation of the Lambda
+# Target for initial creation of Lambda
+# Note: this target is dependent on an IAM role and a log
+# group however it can be triggered whenver the Lambda role is updated. If
+# the Lambda has already been created we will want to update the function
+# configuration.
+
 $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
 	test -n "$$DEBUG" && set -x; \
 	if ! test -d cache; then \
@@ -174,6 +179,8 @@ $(LAMBDA_ARN): $(LAMBDA_LOG_GROUP) $(LAMBDA_ROLE_ARN)
 	    rm -f $(LAMBDA_CONFIGURATION); \
 	    false; \
 	  fi; \
+	else \
+	  touch $@; \
 	fi
 
 %.pyc: %.py
@@ -188,7 +195,7 @@ requirements.txt:
 	$$PIP freeze > $@
 
 $(ZIPFILE): \
-    $(LAMBDA) {% if sns_topic is defined %} $(SNS_TOPIC) $(SNS_SUBSCRIPTION) {% endif %} \
+    $(LAMBDA) \
     $(GLAMBDA) \
     $(GMODULES) \
     $(GPACKAGE_FILES) \
@@ -196,7 +203,7 @@ $(ZIPFILE): \
 
 	# zip/update dependencies
 	test -n "$$DEBUG" && set -x; \
-	@PERL=$$(which perl); \
+	PERL=$$(which perl); \
 	PIP=$$(which pip3); \
 	currdir=$$(pwd); \
 	for a in lib lib64; do \
@@ -229,7 +236,7 @@ $(ZIPFILE): \
 	fi
 
 	# zip/update lambda
-	touch -t 200010101010 $<
+	zip -d $@ $< || true
 	zip -u -g $@ $< || true
 
 # anytime the lambda configuration changes we need to regenerate the
@@ -266,7 +273,7 @@ $(LAMBDA_CONFIGURATION):: $(LAMBDA_CONFIG) $(LAMBDA_ROLE_ARN)
 	fi
 
 $(LAMBDA_CONFIGURATION):: \
-  $(ZIPFILE) {% if bucket is defined %}$(GBUCKET_NOTIFICATION){% endif %}
+  $(ZIPFILE) {% if bucket is defined %}$(GBUCKET_NOTIFICATION){% endif %} {% if sns_topic is defined %} $(SNS_TOPIC) $(SNS_SUBSCRIPTION) {% endif %}
 	test -n "$$DEBUG" && set -x; \
 	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	if test -e "$(LAMBDA_ARN)"; then \

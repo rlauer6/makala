@@ -1,3 +1,14 @@
+Thu Jul 22 16:34:49 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	[Makefile bugs]:
+	* makala/data/Makefile.jinja2
+	- if role arn updated at least touch LAMBDA_ARN
+	- remove dependency of SNS artifacts on ZIPFILE
+	- @PERL -> PERL
+	- add dependency of SNS artifacts for LAMBDA_CONFIGURATION
+	- use delete/add to update zip file
+	* VERSION: bump
+
 Fri Jul 16 09:06:15 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	[S3 notification]:
