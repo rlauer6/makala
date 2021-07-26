@@ -39,6 +39,7 @@ variable "security_group_name" {
 
 data "aws_security_group" "security_group" {
   name = "{{ security_group_name }}"
+  vpc_id = "{{ vpc.id }}"
 }
 
 {% endif %}

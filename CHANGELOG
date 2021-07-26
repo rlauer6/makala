@@ -1,3 +1,24 @@
+Mon Jul 26 15:53:49 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	[vpc config]:
+	* makala/aws/vpc_config.py
+	- security_group_name
+	- remove SecurityGroupName from config
+	* makala/data/Makefile.jinja2
+	- comments on double colon
+	- remove $(MAKE) - not needed, make does the right thing ;-)
+	* makala/data/terraform-provider.jinja2
+	(data.aws_security_group): + vpc_id to be more specific
+	* makala/data/terraform.jinja2
+	(aws_lambda_function)
+	- +description
+	- source_code_hash: ../file
+	- +publish: false
+	(aws_cloud_watch_event_target)
+	- +confirmation_timeout_in_minutes
+	- +endpoint_auto_confirms
+	* VERSION: bump
+
 Thu Jul 22 16:34:49 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	[Makefile bugs]:

@@ -12,10 +12,11 @@ resource "aws_lambda_function" "{{ name }}" {
   function_name    = "{{ name }}"
   role             = "{{ role_arn if role else custom_role }}"
   handler          = "{{ name }}.{{ handler }}"
-  
-  source_code_hash = filebase64sha256("{{ name }}.zip")
+  description      = "{{ description }}"
+  source_code_hash = filebase64sha256("../{{ name }}.zip")
   runtime          = "{{ runtime }}"
   timeout          = "{{ timeout }}"
+  publish          = false
   
   {% if vpc.subnet_ids|length != 0 %} 
   vpc_config  {
@@ -102,6 +103,11 @@ resource "aws_cloudwatch_event_target" "event_target" {
 {%if service == "sns.amazonaws.com" %}
 resource "aws_sns_topic" "{{name}}_sns_topic" {
   name = "{{ sns_topic }}"
+
+  # defaults
+  confirmation_timeout_in_minutes = 1
+  endpoint_auto_confirms          = false
+
 }
 
 resource "aws_sns_topic_subscription" "{{ name }}_sns_topic_subscription" {

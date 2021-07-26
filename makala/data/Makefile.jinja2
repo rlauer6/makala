@@ -245,9 +245,30 @@ Makefile: $(LAMBDA_CONFIG)
 	test -n "$$DEBUG" && set -x; \
 	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
 	makala -o $(LAMBDA_NAME)
-	$(MAKE) $(MFLAGS)
 
 # update configuration if {{ name }}.yaml changes
+
+# Why the :: rule? What does that do?
+
+# We have a target that is built in one of two different ways
+# depending on what dependencies have changed. make allows us to
+# create two different rules for the same target.  These are treated
+# completely indepdent of each
+# other. https://www.gnu.org/software/make/manual/html_node/Double_002dColon.html
+# 
+# Our target(s), although somewhat articifical (output of various aws
+# CLI creation and update invockations), create a convenient target
+# that we can build whenever we detect that that a depdency changes
+# that requires we update the Lambda or its configuration in some
+# manner.
+#
+# So, depending on whether we are creating the Lambda for the first
+# time or updating the lambda we'll need to build the target in a
+# slightly different manner. We could try to detect if this is the
+# first time creation and create an if/then test in one rule, however
+# make gives us the ability to create two different rules for one
+# target.
+
 $(LAMBDA_CONFIGURATION):: $(LAMBDA_CONFIG) $(LAMBDA_ROLE_ARN)
 	test -n "$$DEBUG" && set -x; \
 	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \

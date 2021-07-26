@@ -97,7 +97,10 @@ class AWSVPCConfig():
             self.vpc_id = aws.get_default_vpc(profile=self.profile)["VpcId"]
             self.logger.info("using default vpc: {}".format(self.vpc_id))
             self.subnet_ids = aws.get_private_subnet_ids(self.vpc_id, profile=self.profile)
-            self.security_group_ids = aws.get_default_security_group(self.vpc_id, profile=self.profile)["GroupId"]
+            default_security_group = aws.get_default_security_group(self.vpc_id, profile=self.profile)
+            self.security_group_ids = default_security_group["GroupId"]
+            self.security_group_name = default_security_group["GroupName"]
+
         elif self.vpc_id:
             if self.security_group_name:
                 sg = aws.get_security_group_by_name(self.vpc_id, self.security_group_name, profile=self.profile)
@@ -126,12 +129,15 @@ class AWSVPCConfig():
         if self.security_group_name:
             self.logger.info("setting name: {}".format(self.security_group_name))
             self.config["security_group_name"] = self.security_group_name
+        else:
+            security_group = aws.get_default_security_group(self.vpc_id, profile=self.profile)
+            self.config["security_group_name"] = security_group["GroupName"]
 
         if len(self.subnet_ids) == 0:
             self.logger.warn("no private subnets for vpc: {}".format(self.vpc_id))
 
     def __str__(self):
-        return json.dumps({"SubnetIds": self.subnet_ids, "SecurityGroupIds": self.security_group_ids, "SecurityGroupName": self.security_group_name})
+        return json.dumps({"SubnetIds": self.subnet_ids, "SecurityGroupIds": self.security_group_ids})
 
 if __name__ == "__main__":
     main()
