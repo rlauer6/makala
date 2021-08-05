@@ -421,10 +421,15 @@ SQS_BATCH_SIZE = 5
 $(LAMBDA_EVENT_SOURCE): $(SQS_QUEUE_URL) $(SQS_QUEUE_ATTRIBUTES)
 	test -n "$$DEBUG" && set -x; \
 	test -n "$(AWS_PROFILE)" && export AWS_PROFILE=$(AWS_PROFILE); \
-	aws lambda create-event-source-mapping --function-name $(LAMBDA_NAME) \
-	  --batch-size $(SQS_BATCH_SIZE) \
-	  --maximum-batching-window-in-seconds $(SQS_BATCHING_WINDOW) \
-	  --event-source-arn $(SQS_QUEUE_ARN)
+	EVENT_SOURCE_ARN=$$(aws lambda list-event-source-mappings --function-name $(LAMBDA_NAME) | jq -r '.EventSourceMappings[]|.EventSourceArn'); \
+	if test -z "$$EVENT_SOURCE_ARN"; then \
+	  aws lambda create-event-source-mapping --function-name $(LAMBDA_NAME) \
+	    --batch-size $(SQS_BATCH_SIZE) \
+	    --maximum-batching-window-in-seconds $(SQS_BATCHING_WINDOW) \
+	    --event-source-arn $(SQS_QUEUE_ARN); \
+	else \
+	  touch $@; \
+	fi
 {% endif %}
 
 CLEANFILES = \

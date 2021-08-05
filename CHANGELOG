@@ -1,3 +1,10 @@
+Thu Aug  5 14:02:18 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	[SQS]:
+	* makala/data/Makefile.jinja2
+	- check for event mapping before creating
+	* VERSION: bump
+
 Wed Aug  4 08:44:07 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	[SQS]:
