@@ -8,7 +8,7 @@ locals {
 {% endif %}
 
 resource "aws_lambda_function" "{{ name }}" {
-  filename         = "{{ name }}.zip"
+  filename         = "../{{ name }}.zip"
   function_name    = "{{ name }}"
   role             = "{{ role_arn if role else custom_role }}"
   handler          = "{{ name }}.{{ handler }}"
@@ -103,11 +103,6 @@ resource "aws_cloudwatch_event_target" "event_target" {
 {%if service == "sns.amazonaws.com" %}
 resource "aws_sns_topic" "{{name}}_sns_topic" {
   name = "{{ sns_topic }}"
-
-  # defaults
-  confirmation_timeout_in_minutes = 1
-  endpoint_auto_confirms          = false
-
 }
 
 resource "aws_sns_topic_subscription" "{{ name }}_sns_topic_subscription" {
@@ -115,6 +110,5 @@ resource "aws_sns_topic_subscription" "{{ name }}_sns_topic_subscription" {
   protocol = "lambda"
   endpoint = aws_lambda_function.{{ name }}.arn
 }
-
 {% endif %}
     

@@ -1,0 +1,33 @@
+LAMBDA_NAME="{{ name }}"
+
+provider.tf: terraform-provider.jinja2
+	cd ..; \
+	makala -o -t $(LAMBDA_NAME)
+
+main.tf: terraform.jinja2
+	cd ..; \
+	makala -o -t $(LAMBDA_NAME)
+
+variables.tfvars: terraform-variables.jinja2
+	cd ..; \
+	makala -o -t $(LAMBDA_NAME)
+
+TERRAFORM = \
+    provider.tf \
+    main.tf \
+    variables.tfvars
+
+plan: $(TERRAFORM)
+	terraform plan -no-color \
+	  -var-file variables.tfvars > plan.out || rm -f plan.out
+	test -e plan.out && cat plan.out
+
+all: $(TERRAFORM)
+
+apply:
+	terraform apply -var-file variables.tfvars
+
+.PHONY: apply plan
+
+clean:
+	rm -f plan.out

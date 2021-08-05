@@ -1,6 +1,7 @@
 import yaml
 import os
 import errno
+import logging
 
 import configparser
 import copy
@@ -10,6 +11,7 @@ import pkg_resources
 
 from .aws.vpc_config import AWSVPCConfig
 from .aws.lambda_role import AWSLambdaRole
+from .aws.sqs_config import AWSSQSConfig
 
 import makala.aws.utils as aws
 
@@ -23,6 +25,14 @@ class LambdaConfig():
     @env.setter
     def env(self, env):
         self._env = env
+
+    @property
+    def profile(self):
+        return self._profile
+
+    @profile.setter
+    def profile(self, profile):
+        self._profile = profile
 
     @property
     def region(self):
@@ -127,19 +137,34 @@ class LambdaConfig():
     @makala_config.setter
     def makala_config(self, makala_config):
         self._makala_config = makala_config
+    @property
+
+    def logger(self):
+        return self._logger
+
+    @logger.setter
+    def logger(self, logger):
+        self._logger = logger
 
     def __init__(self, **kwargs):
+
+        self.logger = logging.getLogger()
+
         self.role = None
         self.env = None
         self.vpc = None
         self.bucket = None
         self.sns_topic = None
         self.source_arn = None
-        self.path = kwargs.get("path")
+        self.profile = None
+
         self.lambda_name = kwargs["lambda_name"]
         self.makala_config = kwargs["makala_config"]
+
+        self.path = kwargs.get("path")
         if self.path:
             self.config = self._read_lambda_config()
+            self.profile = self.config.get("profile")
 
             if "env" in self.config and isinstance(self.config["env"], dict):
                 self.env = EnvironmentVars(self.config["env"])
@@ -185,7 +210,26 @@ class LambdaConfig():
             "runtime" : self.makala_config.runtime,
             "region"  : self.makala_config.region,
             "logs"    : {"retention": self.makala_config.log_retention, "level" : "info"}
-        }
+            }
+
+        valid_parameters = {
+            "env" : None,
+            "logs" : None,
+            "name" : None,
+            "role" : None,
+            "role_arn" : None,
+            "custom_role" : None,
+            "service" : None,
+            "bucket" : None,
+            "vpc" : None,
+            "source_account" : None,
+            "sqs" : None
+            }
+
+        all_parameters = list(valid_parameters.keys()) + list(required_vars.keys())
+        for p in self.config.keys():
+            if p not in all_parameters:
+                errors.append("{} is not a valid parameter".format(p))
 
         # current valid values according to:
         #   https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutRetentionPolicy.html: pylint: disable=C0301
@@ -225,25 +269,53 @@ class LambdaConfig():
 
         if "vpc" in self.config:
             if isinstance(self.config["vpc"], dict):
-                self.vpc = AWSVPCConfig(self.config["vpc"], profile=self.config.get("profile"))
+                self.vpc = AWSVPCConfig(self.config["vpc"], profile=self.profile)
             else:
-                self.vpc = AWSVPCConfig({}, profile=self.config.get("profile"))
+                self.vpc = AWSVPCConfig({}, profile=self.profile)
             self.vpc.validate()
             validated_config["vpc"] = self.vpc.config
+
+        self.logger.debug(json.dumps(validated_config, indent=4))
 
         if "role" in validated_config or not "custom_role" in validated_config:
             if "custom_role" in validated_config:
                 del validated_config["custom_role"]
 
+            # more support of other Lambda features later...
+            supported_features = ["sqs.amazonaws.com"]
+
+            if "service" in validated_config and validated_config["service"] in supported_features:
+                lambda_feature = validated_config["service"]
+            else:
+                lambda_feature = None
+
+            self.logger.info("before AWSLambdaRole: {}".format(json.dumps(self.config, indent=4)))
+
             self.role = AWSLambdaRole(
                 validated_config["name"],
                 vpc_enabled=("vpc" in self.config),
                 role=self.config.get("role"),
-                profile=self.config.get("profile")
+                profile=self.config.get("profile"),
+                service=lambda_feature
                 )
 
             validated_config["role"] = self.role.role
             validated_config["role_arn"] = self.role.role_arn
+
+        if "service" in validated_config and "sqs" in validated_config["service"]:
+            if "sqs" in validated_config:
+                sqs_config = AWSSQSConfig(validated_config["name"], self.makala_config, **validated_config["sqs"])
+            else:
+                sqs_config = AWSSQSConfig(
+                    validated_config["name"],
+                    self.makala_config, {
+                        profile : self.config.get("profile"),
+                        queue_name : validated_config["name"]
+                        }
+                    )
+
+            if not "queue_arn" in validated_config["sqs"]:
+                validated_config["sqs"]["queue_arn"] = sqs_config.queue_arn
 
         if "profile" in self.config:
             validated_config["profile"] = self.config.get("profile")
@@ -272,6 +344,8 @@ class LambdaConfig():
 
         if self.bucket:
             validated_config["bucket"] = self.bucket
+
+        self.logger.debug(json.dumps(validated_config, indent=4))
 
         if len(errors) == 0:
             self.config = validated_config

@@ -6,10 +6,11 @@ import  makala.aws.utils as aws
 def main():
     vpc_config = AWSVPCConfig({"id": "vpc-9526f0ee"})
     vpc_config.validate()
-    print(vpc_config)
+    print(json.dumps(vpc_config, indent=4))
+
     vpc_config = AWSVPCConfig({})
     vpc_config.validate()
-    print(vpc_config)
+    print(json.dumps(vpc_config, indent=4))
 
 class AWSVPCConfig():
     @property

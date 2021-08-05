@@ -124,9 +124,11 @@ def main():
             if service_pattern != "s3" and bucket:
                 logger.error("bucket option only valid with when service is s3")
                 sys.exit(-1)
-            else:
-                if not aws.validate_bucket(bucket):
+            elif service_pattern == "s3":
+                if bucket and not aws.validate_bucket(bucket):
                     logger.warning("bucket {} does not exist".format(bucket))
+                else:
+                    bucket = "REPLACE-ME-WITH-BUCKET-NAME"
                 bucket_config = { "name" : bucket }
                 if bucket_filter:
                     filter = bucket_filter.split(":")
@@ -134,11 +136,22 @@ def main():
                         "name" : filter[0],
                         "value" : filter[1]
                         }
+                else:
+                    bucket_config["filter"] = { "name" : "prefix", "value" : "" }
+
                 if bucket_events:
                     events = bucket_events.split(",")
                     bucket_config["events"] = ["{}".format(a) for a in events]
+                else:
+                    bucket_config["events"] = ['s3:ObjectCreated:Post']
 
                 source_arn = "arn:aws:s3:::{}".format(bucket)
+            elif service_pattern == "sqs":
+                pass
+            elif service_pattern == "logs":
+                pass
+            else:
+                pass
         else:
             logger.error("{} is not a supported service")
             print("Supported services:")
@@ -251,15 +264,6 @@ def main():
     else:
         sys.exit(-1)
 
-    if os.path.exists("Makefile.jinja2"):
-        template_name = "Makefile.jinja2"
-        template_dir = os.getcwd()
-        logger.warn("using local Makefile template")
-    else:
-        template_name = pkg_resources.resource_filename("makala", 'data/Makefile.jinja2')
-        template_dir = "/"
-        shutil.copyfile(pkg_resources.resource_filename("makala", "data/Makefile.jinja2"), "Makefile.jinja2")
-
     # setup a few variables needed for jinja template
     validated_config = lambda_config.config
 
@@ -297,6 +301,15 @@ def main():
         logger.warn("no source_arn defined")
 
     if not args.terraform:
+        if os.path.exists("Makefile.jinja2"):
+            template_name = "Makefile.jinja2"
+            template_dir = os.getcwd()
+            logger.warn("using local Makefile template")
+        else:
+            template_name = pkg_resources.resource_filename("makala", 'data/Makefile.jinja2')
+            template_dir = "/"
+            shutil.copyfile(pkg_resources.resource_filename("makala", "data/Makefile.jinja2"), "Makefile.jinja2")
+
         text = render_output(template_dir=template_dir, template=template_name, config=validated_config)
         with open(target, "w") as f: # pylint: disable=C0103
             f.write(text)
@@ -313,16 +326,23 @@ def main():
             validated_config["security_group_name"] = validated_config["vpc"]["security_group_name"]
 
         templates = {
-            "terraform": "main.tf",
-            "terraform-provider": "provider.tf",
-            "terraform-variables" : "variables.tfvars"
+            "terraform"           : "main.tf",
+            "terraform-provider"  : "provider.tf",
+            "terraform-variables" : "variables.tfvars",
+            "terraform-Makefile"  : "Makefile"
             }
 
+        template_dir = "{}/terraform".format(os.getcwd())
+
+        print("{}".format(json.dumps(validated_config, indent=4)))
+
+        # copy templates
         for t in templates.keys():
+            template_name = "{}/{}.jinja2".format(template_dir, t)
+            if not os.path.exists("terraform/{}.jinja2".format(t)):
+                shutil.copyfile(pkg_resources.resource_filename("makala", "data/{}.jinja2".format(t)), "{}/{}.jinja2".format(template_dir, t))
             target = "terraform/{}".format(templates[t])
-            template_name = pkg_resources.resource_filename("makala", "data/{}.jinja2".format(t))
-            template_dir = "/"
-            text = render_output(template_dir=template_dir, template=template_name, config=validated_config)
+            text = render_output(template_dir="/", template=template_name, config=validated_config)
 
             if os.path.exists(target) and not args.overwrite:
                 logger.error("{} exists. Use -o (overwrite) option.".format(target))
@@ -331,7 +351,7 @@ def main():
                     f.write(text)
 
 def render_output(**kwargs):
-    """Render the jinja2 template and create the Makefile.
+    """Render the jinja2 templates (works for both Makefile and terraform files)
     """
     file_loader = FileSystemLoader(kwargs.get("template_dir") or "/")
     config = kwargs["config"]

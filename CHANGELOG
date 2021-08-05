@@ -1,3 +1,55 @@
+Wed Aug  4 08:44:07 2021  Rob Lauer  <rlauer6@comcast.net>
+
+	[SQS]:
+	* README.md: notes on sqs section
+	* setup.py
+	- renamed Makefile-terraform -> terraform-Makefile.jinja2
+	* makala/data/Makefile.jinja2
+	- add SQS_* parameters for SQS service
+	(LAMBDA_EVENT_SOURCE): new target if SQS service
+	(all): add $(LAMBDA_EVENT_SOURCE) as conditional dependency
+	* makala/aws/lambda_role.py
+	(service): new property
+	(validate): pass service to create_role()
+	(validate_role): update execution policy for vpc/non-vpc
+	* makala/aws/utils.py
+	(get_sqs_client): new
+	(get_lambda_client): new
+	(attach_role_policy): new
+	(create_lambda_role): add appropriate execution role based on service
+	(list_event_source_mappings): new
+	* makala/lambda_config.py
+	(profile): new property
+	(logger): new property
+	(validate)
+	- validate config against list of valid parameters
+	- use profile property
+	- check for supported service
+	- if service is SQS, add set sqs_config = AWSSQSConfig (creates queue)
+	* makala/makala.py
+	- set bucket name to default if no bucket name and service is S3
+	- add default filter if no bucket config
+	- add default events if no bucket config
+	- stubs for sqs, logs patterns
+
+	[terraform]:
+	* makala/data/terraform-Makefile.jinja2 from Makefile-terraform
+	(provider.tf): new targets
+	(main.tf): likewise
+	(variables.tfvars): likewise
+	(all): likewise
+	* makala/data/terraform.jinja2
+	(aws_lambda_function)
+	- zip file should be up on directory (../)
+	(aws_cloudwatch_event_target)
+	- removed defaults
+	* makala/makala.py
+	- copy terraform templates to working terraform directory
+
+	[miscellaneous]:
+	* makala/aws/vpc_config.py
+	- dump as formatted JSON
+
 Mon Jul 26 15:53:49 2021  Rob Lauer  <rlauer6@comcast.net>
 
 	[vpc config]:

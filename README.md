@@ -14,7 +14,7 @@ Terraform you can apply to create your serverless function.
 
 ## Why should I use the `Makefile`?
 
-Use `make` does a few things _automagically_ for you:
+Using `make` does a few things _automagically_ for you:
 
 * Quick syntax check of your Python code (TBD: linting, unit testing)
 * Recognizes dependency changes to build new Lambda package (including
@@ -146,7 +146,7 @@ runtime = python3.6
 
 ### `{lambda-name}.yaml`
 
-You create his file to configure your Lambda.
+You create this file to configure your Lambda.
 
 ```
 description: description of your lambda
@@ -202,6 +202,72 @@ source_arn: ''
 timeout: 120
 ```
 
+### Services
+You can create stub configuration files for various services that you
+want to be supported by your Lambda. The example above creates a stub
+for a Lambda that supports a CloudWatch event. Support services include:
+
+* '-s events' => events.amazonaws.com
+* '-s sns'    => sns.amazonaws.com
+* '-s s3'     => s3.amazonaws.com
+* '-s sqs'    => sqs.amazonaws.com
+* '-s logs'   => logs.amazonaws.com
+
+#### SNS
+
+For supporting SNS event, add a parameter of `sns-topic`
+to your configuration file which describes the topic your Lambda
+should subscribe to.
+
+#### SQS
+
+For supporting SQS events, the configuration should include a `sqs`
+section as shown below:
+
+```
+sqs:
+  queue_name:
+  deduplication_scope: 
+  delay_seconds:
+  fifo_queue:
+  kms_master_key_id:
+  maximum_message_size:
+  message_retention_period:
+  policy:
+  receive_message_wait_time_seconds :
+  redrive_policy:
+    deadletter_target_arn:
+    max_receive_count:
+  visibility_timeout:
+```
+
+If your service pattern selected is SQS and you do not have a section
+for the SQS configuration, `makala` will add a section with defaults.
+When you do a `make`, the `Makefile` will also create the queue and
+the event mapping that allows your Lambda to service the queue.
+
+#### S3
+
+For supporting S3 events, the configuration includes a `bucket`
+section.
+
+```
+bucket:
+  events:
+  - s3:ObjectCreated:Post
+  filter:
+    name: prefix
+    value: ''
+  name: REPLACE-ME-WITH-BUCKET-NAME
+```
+
+* `events` describes the events that will trigger your Lambda.  See
+  https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-event-types-and-destinations.html
+  for more details on events that you can use to trigger your Lambda.
+* `filter` describes one or more filters that are used to filter
+  bucket events. `name` can be one of 'prefix' or 'suffix'.
+* `name` is the name of your bucket.
+
 ## How the `Makefile` works
 
 Makefiles work by building targets based on dependencies. A Lambda is
@@ -225,16 +291,20 @@ local cache directory that maintain the state of the deployment.
 Depending on the state of your configuration file, it too may be
 updated to provide defaults.
 
+### Customizing the `Makefile`
+
 The `Makefile` itself is generated from a jinja2 template that is
 packaged with the script. When you create your first `Makefile`, the
 jinja2 template will also be copied to your working directory.  Since
 the `Makefile` itself is dependent on your `.yaml` configuration file,
 any time it is updated, invoking `make` will recreate your `Makefile`
-from the jinja2 template.  *If you want to customize the `Makefile`,
-make changes to the template, not the `Makefile`.*  Rerun `makala` to
-generate a fresh `Makefile` whenever you alter the template.  Add the
-template to your code repo to make sure that it is preserved for
-future changes to your project.
+from the jinja2 template.
+
+*If you want to customize the `Makefile`, make changes to the
+template, not the `Makefile`.*  Rerun `makala` to generate a fresh
+`Makefile` whenever you alter the template.  Add the template to your
+code repo to make sure that it is preserved for future changes to your
+project.
 
 ### `Makefile` Targets
 
@@ -557,7 +627,8 @@ cd terraform
 terraform init
 ```
 
-* Before running `terraform init` edit the `provider.tf` file to
+* Before running `terraform init` edit the `provider.tf` (or the
+  `terraform-provider.jinja2` template and re-run `makala`) file to
   configure your own state file location and type.
 * You'll also find that some resources are simply stubs for you to
   complete.  For example, if your Lambda is the target of a CloudWatch
@@ -572,7 +643,27 @@ terraform init
   change even if there are no code differences between the curren
   Lambda state and your zip file.
 
-# NOTES
+## Customizing the Terraform and Terraform `Makefile`
+
+`makala` gives you a headstart for building your infrastructure using
+Terraform but may not provide all of the resources you need for your
+specific application. To create additional resources you can edit the
+`main.tf`, `provider.tf` and `variables.tvar` files created for you
+when you ran `makala -t`.  If you want to keep things in sync with
+your configuration file so you can re-run `makala`, edit the
+`terraform.jinja2`, `terraform-provider.jinja2` or the
+`terraform-variables.jinja2` files that are copied to your `terraform`
+directory.
+
+Likewise, when you generate the Terraform for your project `makala`
+will use a jinja2 template for creating the `Makefile`.  The template
+will be copied to your `terraform/` directory.  Modify this file if
+you want to customize if for your needs.  When you re-run `makala` it
+will use the template in your `terraform/` directory to recreate the
+`Makefile`.
+
+
+# NOTES and HINTS
 
 * To view the permissions granted for a service to invoke a Lambda
   function use:
@@ -603,21 +694,25 @@ terraform init
 ## I want to create a Lambda that is triggered by an S3 bucket event.
 
 ```
+TBD
 ```
 
 ## I want to create a Lambda that subscribes to an SNS topic.
 
 ```
+TBD
 ```
 
 ## I want to create a Lambda that is launched by a CloudWatch event.
 
 ```
+TBD
 ```
 
 ## I want to create a Lambda that is invoked by CloudWatch logs.
 
 ```
+TBD
 ```
 
 # FAQ
@@ -634,7 +729,7 @@ the hope here is that 'makala' loosens the friction for creating a Lambda.
 Try `DEBUG=1 make` and view the steps carefully.  If you want to
 modify the `Makefile`, modify the `Makefile.jinja2` template that is
 copied to your working directory the first time you execute `makala`.
-If you can't find the problem, submit and issue.
+If you can't find the problem, submit an issue.
 
 ## __Should I use the `Makefile` or Terraform to create Lambda functions?__
 
@@ -645,7 +740,3 @@ Lambda may not be the only component that requires those resources.
 Personally, I find that using the `Makefile` approach for prototyping
 and testing is the most satisfying and efficient, while using
 Terraform leads to a more maintainable and transparent infrastructure.
-
-# TBDs
-
-* [ ] option to create configuration from an existing lambda

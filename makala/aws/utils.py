@@ -5,6 +5,7 @@ import sys
 import logging
 import boto3
 import os
+import json
 
 def main():
     print(get_caller_account())
@@ -30,6 +31,9 @@ def get_client(profile, service):
 
     return client
 
+def get_sqs_client(profile):
+    return get_client(profile, 'sqs')
+
 def get_s3_client(profile):
     return get_client(profile, 's3')
 
@@ -44,6 +48,9 @@ def get_sns_client(profile):
 
 def get_sts_client(profile):
     return get_client(profile, 'sts')
+
+def get_lambda_client(profile):
+    return get_client(profile, 'lambda')
 
 def lambda_add_permission(function_name, action, **kwargs):
     profile = kwargs.get("profile")
@@ -64,6 +71,11 @@ def get_caller_identity(profile=None):
 def get_caller_account(profile=None):
     identity = get_caller_identity(profile=profile)
     return identity["Account"]
+
+def attach_role_policy(role_name, policy_arn, profile=None):
+    iam = get_iam_client(profile)
+    response = iam.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+    return response
 
 def list_role_policies(role_name, profile=None):
     iam = get_iam_client(profile)
@@ -115,11 +127,35 @@ def create_lambda_role(**kwargs):
     """
     role_name = kwargs["role_name"]
     vpc = kwargs["vpc"]
+    service=kwargs.get("service")
+    logger = logging.getLogger()
+    logger.info(json.dumps(kwargs))
+
+    execution_roles = {
+        'dynamodb' : 'AWSLambdaDynamoDBExecutionRole',
+        'kinesis'  : 'AWSLambdaKinesisExecutionRole',
+        'mq'       : 'AWSLambdaMQExecutionRole',
+        'msk'      : 'AWSLambdaMSKExecutionRole',
+        'sqs.amazonaws.com'      : 'AWSLambdaSQSQueueExecutionRole',
+        'xray'     : 'AWSXRayDaemonWriteAccess',
+        'insights' : 'CloudWatchLambdaInsightsExecutionRolePolicy'
+        }
+
+    if service:
+        if service in execution_roles.keys():
+            execution_role = "arn:aws:iam::aws:policy/service-role/{}".format(execution_roles[service])
+        else:
+            raise ValueError("service {} does not exist".format(service))
+
     role_arn = validate_role(role_name)
     profile = kwargs.get("profile")
 
     if not role_arn:
         role_arn = create_lambda_execution_role(role_name, vpc=vpc, profile=profile)
+
+    if service:
+        logger.debug("attaching role: {}".format(execution_role))
+        attach_role_policy(role_name, execution_role, profile=profile)
 
     return role_arn
 
@@ -224,6 +260,12 @@ def get_private_subnet_ids(vpc_id, profile=None):
                 private_subnets = [s["SubnetId"] for s in rt["Associations"]]
 
     return private_subnets
+
+def list_event_source_mappings(lambda_name, **kwargs):
+    profile=kwargs.get("profile")
+
+    lambda_client = get_lambda_client(profile)
+    return lambda_client.list_even_mappings(FunctionName=lambda_name)
 
 if __name__ == "__main__":
     main()

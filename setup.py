@@ -14,9 +14,9 @@ with open("README.md", "r") as fh:
             'makala': [
                 'data/Makefile.jinja2',
                 'data/makala.cfg',
-                'data/terraform.jinja2',
                 'data/lambda.py',
-                'data/Makefile-terraform',
+                'data/terraform.jinja2',
+                'data/terraform-Makefile.jinja2',
                 'data/terraform-provider.jinja2',
                 'data/terraform-variables.jinja2'
                 ]

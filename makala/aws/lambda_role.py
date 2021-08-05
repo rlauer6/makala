@@ -26,6 +26,14 @@ class AWSLambdaRole():
         self._logger = logger
 
     @property
+    def service(self):
+        return self._service
+
+    @service.setter
+    def service(self, service):
+        self._service = service
+
+    @property
     def profile(self):
         return self._profile
 
@@ -85,28 +93,60 @@ class AWSLambdaRole():
         self.lambda_name = lambda_name
         self.role = kwargs.get("role")
         self.profile = kwargs.get("profile")
+        self.service = kwargs.get("service")
 
         self.auto_create_role = kwargs.get("auto_create_role")
         self.vpc_enabled = kwargs.get("vpc_enabled") or False
+        self.logger.info("vpc_enabled: {}".format(self.vpc_enabled))
+
         self._role_arn = kwargs.get("role_arn") or None
         self.role_arn = self.validate()
 
     def validate(self):
         role_arn = None
+
         if not self.role_arn and self.role:
             role_arn = aws.validate_role(self.role, profile=self.profile)
+            self.logger.info("role_arn: {}".format(role_arn))
             if not role_arn:
                 self.logger.info("creating lambda role: {}".format(self.role))
-                role_arn = aws.create_lambda_role(role_name=self.role, vpc=self.vpc_enabled, profile=self.profile)
+                role_arn = aws.create_lambda_role(role_name=self.role, vpc=self.vpc_enabled, service=self.service, profile=self.profile)
+            else:
+                self.validate_role()
 
         elif not self.role_arn and self.auto_create_role:
             self.logger.info("creating lambda_role: {}".format(self.role))
-            role_arn = aws.create_lambda_role(role_name=self.role, vpc=self.vpc_enabled, profile=self.profile)
+            role_arn = aws.create_lambda_role(role_name=self.role, vpc=self.vpc_enabled, service=self.service, profile=self.profile)
+
+# role exists, so validate the execution role
 
         return role_arn
 
+    def validate_role(self):
+        policies = aws.list_role_policies(self.role, profile=self.profile)
+        self.logger.info("validating role: {} {} vpc_enabled: {}".format(self.role, json.dumps(policies, indent=4), self.vpc_enabled))
+
+        if self.vpc_enabled:
+            if not any("AWSLambdaVPCAccessExecutionRole" in p for p in policies):
+                if any("AWSLambdaBasicExecutionRole" in p for p in policies):
+                    self.logger.info("detatching AWSLambdaBasicExecutionRole")
+                    aws.detach_role_policy(self.role, self.format_policy_arn("AWSLambdaBasicExecutionRole"))
+                    aws.attach_role_policy(self.role, self.format_policy_arn("AWSLambdaVPCAccessExecutionRole"))
+        else:
+            self.logger.info("VPC is not enabled!")
+            if not any("AWSLambdaBasicExecutionRole" in p for p in policies):
+                if any("AWSLambdaVPCAccessExecutionRole" in p for p in policies):
+                    self.logger.info("detatching AWSLambdaVPCAccessExecutionRole")
+                    aws.detach_role_policy(self.role, self.format_policy_arn("AWSLambdaVPCAccessExecutionRole"))
+                    aws.attach_role_policy(self.role, self.format_policy_arn("AWSLambdaBasicExecutionRole"))
+
+        return
+
     def __str__(self):
         return self.role_arn
+
+    def format_policy_arn(self, policy_name):
+        return "arn:aws:iam::aws:policy/service-role/{}".format(policy_name)
 
     def delete(self):
         if self.role_arn and self.role:
